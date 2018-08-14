@@ -96,6 +96,13 @@ canonifyurls = true
   pre = "<i class=\"sidebar-button-icon fa fa-lg fa-stack-overflow\"></i>"
   url = "https://stackoverflow.com/users/5990938/jonny-phelps"
 
+[[menu.links]]
+  weight = 3
+  identifier = "e-mail"
+  name = "E-Mail"
+  pre = "<i class=\"sidebar-button-icon fa fa-lg fa-envelope\"></i>"
+  url = "mailto:jphelps130591@gmail.com"
+
 #[[menu.links]]
 #  weight = 3
 #  identifier = "linkedin"
