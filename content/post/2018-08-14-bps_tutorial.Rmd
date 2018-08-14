@@ -9,6 +9,17 @@ tags:
   - R
   - logistic regression
   - quasi-binomial
+keywords:
+  - fpl
+  - bps
+  - bonus points
+  - fpl bps
+  - fpl bonus points
+  - fpl statistics
+  - fpl data
+  - fpl analysis
+  - fpl data analysis
+  - fpl data science
 output:
   blogdown::html_page:
     toc: true
