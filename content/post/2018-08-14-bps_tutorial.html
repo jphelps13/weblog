@@ -1,0 +1,787 @@
+---
+title: Exploring FPL Bonus Points
+author: "Jonathan Phelps"
+date: '2018-08-14'
+slug: fpl-bonus-points
+categories:
+  - fpl
+tags:
+  - R
+  - logistic regression
+  - quasi-binomial
+output:
+  blogdown::html_page:
+    toc: true
+    toc_depth: 4
+editor_options:
+  chunk_output_type: console
+thumbnailImagePosition: left
+thumbnailImage: https://lh3.googleusercontent.com/yiSLx8qVsCPOvxxmhCLH3OaOLIPy-B4pNblHoadojSCeaI3LQb6vceAtSoCM_nWRrmuHqBzlejDZZW7olsssvBhp_X7bWQD0L5lFdOXUgL2TnyYVjgX0y-59ob65UBHKPEloaRlFbVe_XFeNNfbORGbvMCgc7tu-cEMXGFqFXbyAQ5ysvt9DZLiH-m7LjXKfAcVt9s8O7xOozwPE7wo6C2gZ5X4pVL3qhDR8XleRtAb2d_cATrZUE3X5dnWygp-ojQkrABvDd1iS53KnJpTKz_pgbLVn4XkOM4ehhRTUYIffN8wl_zJhG_Bg_EpSzygzrh0is7rltniP8XQkOrmSqH0YTwXQhdOEEUQN5ei4XxaL0d9yHrHSTIlh4hq1YraIRtCvKmkDSJ29_ot0BQdcMlXTOxsgoiZqo4Npa9SrZaZA1nmsuLfpxeeMCBeZlHdAdfRFdE-gruHh8PMOhpjbMrkxOIcLaRv39NXNReY_ZCIULt37leuuLn_UdEJkO1Whl8E_vUXKzbNs6MX-U1OsPCF_oY7Zqz8XdqLskoqSS6eegP-adQZwPoRpIwCYab9kCWtjW5k2GdWveGaVtk1yLtd5t1K39TsVEzUPQtp-=s849-no
+---
+
+
+<div id="TOC">
+<ul>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#data-exploration">Data Exploration</a><ul>
+<li><a href="#setup">Setup</a></li>
+<li><a href="#data-collection">Data collection</a></li>
+<li><a href="#data-visualisation">Data Visualisation</a></li>
+</ul></li>
+<li><a href="#modelling">Modelling</a><ul>
+<li><a href="#objective">Objective</a></li>
+<li><a href="#logistic-regression">Logistic regression</a><ul>
+<li><a href="#bps">bps</a></li>
+<li><a href="#playing-team">Playing Team</a></li>
+<li><a href="#opposition-team">Opposition Team</a></li>
+<li><a href="#playing-position">Playing Position</a></li>
+<li><a href="#final-model">Final Model</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#final-thoughts">Final Thoughts</a></li>
+</ul>
+</div>
+
+<div id="overview" class="section level2">
+<h2>Overview</h2>
+<p>In this post, I am going to look at predicting the number of bonus points that a player will accrue throughout the 2017/18 FPL season. During a fixture, a footballer will receive <code>bps</code> points for events e.g. scoring a goal or making an interception. The scoring system for these points can be found at: <a href="https://www.premierleague.com/news/106533" class="uri">https://www.premierleague.com/news/106533</a>. At the end of the fixture the three players with the highest <code>bps</code> values score <code>bonus</code> points of (3, 2, 1) respectively, which are added to their total score. I’m going to have a look at the distributions of <code>bps</code> scores by position and teams, to get predictions for <code>bonus</code> points.</p>
+<p>Data was extracted and cleaned from the repository <a href="https://github.com/vaastav/Fantasy-Premier-League" class="uri">https://github.com/vaastav/Fantasy-Premier-League</a> for the 2017/18 season.</p>
+</div>
+<div id="data-exploration" class="section level2">
+<h2>Data Exploration</h2>
+<div id="setup" class="section level3">
+<h3>Setup</h3>
+<p>Data is stored in my GitHub repository <code>fpl-analytics</code>. This is stored as a package and can be installed below.</p>
+<pre class="r"><code>library(devtools)
+install_github(&quot;jphelps13/fpl.analytics&quot;)</code></pre>
+<p>For this tutorial please make sure you have installed the following packages. I will be using the <code>data.table</code> package extensibvely.</p>
+<pre class="r"><code># Github
+library(fpl.analytics)
+
+# CRAN
+library(data.table) # data management
+library(ggplot2) # plotting tool
+library(ggrepel) # plotting tool
+library(stringi) # removing special characters from names
+library(HH) # glm prediction intervals</code></pre>
+</div>
+<div id="data-collection" class="section level3">
+<h3>Data collection</h3>
+<p>Some manipulation is required from the raw data to get a view of the players fixture data for the 2017-18 season. A view of the complete data set is below.</p>
+<pre class="r"><code># collects the data from fpl.analytics for the vignette
+# special characters in player names have been translated to english for ease of use
+# with the stringi package
+dt &lt;- fpl.analytics::fpl_2017_18_player_history
+head(dt, 2)</code></pre>
+<pre><code>##    assists attempted_passes big_chances_created big_chances_missed bonus
+## 1:       0               34                   0                  0     0
+## 2:       0               38                   0                  0     0
+##    bps clean_sheets clearances_blocks_interceptions completed_passes
+## 1:  27            1                               9               26
+## 2:  12            0                               4               27
+##    creativity dribbles errors_leading_to_goal
+## 1:        1.1        0                      0
+## 2:        0.2        0                      0
+##    errors_leading_to_goal_attempt fixture fouls goals_conceded
+## 1:                              0     170     0              0
+## 2:                              0     341     0              4
+##    goals_scored ict_index    id influence key_passes minutes offside
+## 1:            0       2.3  9301      21.6          0      90       0
+## 2:            0       1.5 20015      14.4          0      90       0
+##    open_play_crosses own_goals penalties_conceded penalties_missed
+## 1:                 0         0                  0                0
+## 2:                 0         0                  0                0
+##    penalties_saved recoveries red_cards round saves selected tackled
+## 1:               0          4         0    17     0    41325       0
+## 2:               0          7         0    35     0   132819       0
+##    tackles target_missed team_a_score team_h_score threat total_points
+## 1:       1             0            0            0      0            6
+## 2:       0             0            1            4      0            0
+##    transfers_in transfers_out value was_home winning_goals yellow_cards
+## 1:         2931           998    50     TRUE             0            0
+## 2:        14143          3960    49    FALSE             0            0
+##        player_name position     team opponent_team
+## 1: Aaron_Cresswell      DEF West Ham       Arsenal
+## 2: Aaron_Cresswell      DEF West Ham       Arsenal</code></pre>
+<pre class="r"><code># trim fixtures where no playing time or bps values
+dt &lt;- dt[bps &gt; 0,]
+dt &lt;- dt[minutes &gt; 0,] </code></pre>
+<p>Most of this data isn’t going to be used for this analysis. Key columns are:</p>
+<ul>
+<li><code>player_name:</code> name of footballer, with first name and surname separated with an underscore</li>
+<li><code>team/opponent_team:</code> team in which the footballer plays for, and against for the fixture</li>
+<li><code>bps:</code> number of hidden bonus points the footballer received in a given fixture, based on the bps rules</li>
+<li><code>bonus:</code> the end result bonus score of (1, 2, 3) based on how the footballer performed against the other players (bps)</li>
+<li><code>position:</code> position on the pitch: (GKP, DEF, MID, FWD)</li>
+<li><code>was_home:</code> whether it is a home match for that footballer</li>
+</ul>
+<p>The objective is to predict <code>bonus</code> from <code>bps</code> plus other variables.</p>
+</div>
+<div id="data-visualisation" class="section level3">
+<h3>Data Visualisation</h3>
+<p>Lets have a look at the distribution of <code>bps</code> by position. As we go down the pitch, from Goalkeeper to Forward, we see that the Median <code>bps</code> value decreases, whilst the upper tail of the distribution increases.</p>
+<pre class="r"><code># upper bound for bps, will use for plots
+qu &lt;- quantile(dt$bps, 0.995)
+
+# check bps by position 
+# - Forwards distribution looks bi-modal, with either a low score, or a score ~ 30.
+#   Variance is the largest with the longest tail. 
+# - Goalkeepers have the highest median, but the shortest tail.  
+ggplot() + geom_density(data = dt, aes(x = bps, group = position, fill = position),
+               alpha = 0.4, colour = NA, adjust = 1.5) + 
+  theme_minimal() + 
+  coord_cartesian(xlim = c(0, qu))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-4-1.png" width="1152" /></p>
+<p>Across the season, we can visualise the distribution of the final <code>bonus</code> points. I’ve summed these up by players.</p>
+<pre class="r"><code>sum_dt &lt;- dt[bonus &gt; 0, .(bonus = sum(bonus)), by = .(player_name, team, position)]
+
+# visualise distributions of final bonus points by position and team. 
+ggplot() + geom_density(data = sum_dt, aes(x = bonus, group = position, fill = position),
+                        alpha = 0.4, colour = NA, adjust = 1.5) + 
+  theme_minimal() +
+  coord_cartesian(ylim = c(0, 0.1))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-5-1.png" width="1152" /> Here we see that the heavy right tail for Forwards with regards to <code>bps</code> mean they tend to score higher with final bonus points. The distributions for Midfielders and Defenders are very similar, despite Defenders receiving more <code>bps</code> on average. This is to be expected as we are interested in players receiving the most <code>bps</code> points each fixture, not the average.</p>
+<p>We can have a look at the <code>bps</code> positional split by team:</p>
+<pre class="r"><code># visualise distributions of bps_match by position and team. 
+ggplot() + geom_density(data = dt, aes(x = bps, group = position, fill = position),
+               alpha = 0.3, adjust = 1.5, colour = NA) + 
+  theme_minimal() + 
+  facet_wrap(~team, ncol = 4) + 
+  coord_cartesian(xlim = c(0, qu), ylim = c(0, 0.05))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-6-1.png" width="3600" /></p>
+<p>The distribution that differs the most is that for Forwards. The established top 6 teams in 2017-18 were (Man City, Man Utd, Spurs, Liverpool, Chelsea, Arsenal). In all these cases, the distribution of bps is quite long and flat. Compared to the three relegated teams (Stoke, Swansea, West Brom), there are much larker peaks close to 0.</p>
+<p>For Goalkeepers, can see that those at Stoke, Burnley and West Ham do better than in other positions.</p>
+<p>Looking at the bps scoring system, the highest two valued are “Forwards scoring a goal” &amp; “Midfielders” scoring a goal at 24 &amp; 18 respectively. Distribution of goals per match are below, scaled and weighted. We would expect that when a Forward scores, the likelihood of receiving bonus points goes up a lot, compared to matches where they don’t score. Assists are worth 9 points, whilst clean sheets for GKP &amp; DEF are worth 12.</p>
+<pre class="r"><code>sum_dt &lt;- dt[, .(goals_scored = sum(goals_scored),
+                 assists = sum(assists),
+                 clean_sheets = sum(clean_sheets),
+                 game_time = sum(minutes)/90), by = .(player_name, position, team)]
+
+sum_dt[, goals_match := goals_scored/game_time]
+sum_dt[, assists_match := assists/game_time]
+sum_dt[, clean_sheets_match := clean_sheets/game_time]
+
+# goals density, per match
+ggplot() + geom_density(data = sum_dt[position != &quot;GKP&quot;,], 
+                        aes(x = goals_match, fill = position, weight = game_time, y = ..scaled..),
+                        alpha = 0.3, colour = NA) + 
+  theme_minimal() + 
+  coord_cartesian(xlim = c(0, 1))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-7-1.png" width="3600" /></p>
+<pre class="r"><code># assists density, per match
+ggplot() + geom_density(data = sum_dt[position != &quot;GKP&quot;,], 
+                        aes(x = assists_match, fill = position, weight = game_time, y = ..scaled..),
+                        alpha = 0.3, colour = NA) + 
+  theme_minimal() + 
+  coord_cartesian(xlim = c(0, 1))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-7-2.png" width="3600" /></p>
+<pre class="r"><code># clean sheets density, per match
+ggplot() + geom_density(data = sum_dt[!position %in% c(&quot;MID&quot;, &quot;FWD&quot;),], 
+                        aes(x = clean_sheets_match, weight = game_time), fill = &quot;darkgrey&quot;, col = NA) + 
+  theme_minimal() + 
+  coord_cartesian(xlim = c(0, 1))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-7-3.png" width="3600" /></p>
+</div>
+</div>
+<div id="modelling" class="section level2">
+<h2>Modelling</h2>
+<div id="objective" class="section level3">
+<h3>Objective</h3>
+<p>To predict final match day <code>bonus</code> points.</p>
+<p>A complete model would consider: * Fixtures &amp; Home/Away effect e.g.quality of play in different circumstances * Quality of the team e.g. threshold required for receiving bonus points * Style of play e.g. Defensive or attacking; Formation * Exposure i.e. amount of game time per match; number of starts * Position. bps point system is positional dependent. Correlation of bps between position * Transfers, team roster, injuries etc. understanding when a player has low exposure</p>
+<p>Here is a view of the jittered bps v bonus across all players:</p>
+<pre class="r"><code>ggplot(dt, aes(x = bps, y = bonus)) +
+  theme_minimal() + 
+  geom_jitter(width = 0.5, height= 0.2, col = &quot;darkgrey&quot;)</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-8-1.png" width="1152" /></p>
+<p>This could be converted so that the response is a (0,1) fraction e.g. below. If this were a binomial problem i.e. bonus points are either 0 or 1, we could use logistic regression with binary response. For cases such as these, logistic regression is still possible when we use a quasi-likelihood distribution. This allows for the added variance in the response we have by having multiple levels of bonus points.</p>
+<pre class="r"><code># max bonus is 3
+dt[, bonus_frac := bonus/3]</code></pre>
+</div>
+<div id="logistic-regression" class="section level3">
+<h3>Logistic regression</h3>
+<div id="bps" class="section level4">
+<h4>bps</h4>
+<p>To make the displays a bit nicer, I’m going to make an assumption that there is a minimum <code>bps</code> threshold required in order to get bonus points. In last years data, there wasn’t a bonus point gained for cases where <code>bps &lt;= 17</code>. I’ve taken these out, and will assume that their fit is 0. It doesn’t affect the analysis too much, and allows me to focus the graphs better.</p>
+<pre class="r"><code># assume that 18 required in order to get a bonus point
+min(dt[bonus &gt; 0, bps])</code></pre>
+<pre><code>## [1] 18</code></pre>
+<pre class="r"><code>ql &lt;- min(dt[bonus &gt; 0, bps]) - 1
+mdt &lt;- dt[bps &gt; ql,]</code></pre>
+<pre class="r"><code># fit base model against bps
+mod0 &lt;- glm(bonus_frac ~ bps, data = mdt, family = quasibinomial(&quot;logit&quot;))
+summary(mod0)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = bonus_frac ~ bps, family = quasibinomial(&quot;logit&quot;), 
+##     data = mdt)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.5179  -0.4697  -0.2821   0.2254   2.5471  
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept) -8.479994   0.258836  -32.76   &lt;2e-16 ***
+## bps          0.263798   0.008963   29.43   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for quasibinomial family taken to be 0.7129247)
+## 
+##     Null deviance: 2576.4  on 3163  degrees of freedom
+## Residual deviance: 1282.6  on 3162  degrees of freedom
+## AIC: NA
+## 
+## Number of Fisher Scoring iterations: 6</code></pre>
+<pre class="r"><code># function to add latest fits to the data, removing any that exist
+joinModelDt &lt;- function(mdt, mod_fits){
+  suppressWarnings(mdt[, (names(mod_fits)) := NULL])
+  return(cbind(mdt, mod_fits))
+}
+mod0_fits &lt;- as.data.table(HH::interval(mod0, type = &quot;response&quot;))
+mdt &lt;- joinModelDt(mdt, mod0_fits)
+
+# visualise the output
+ggplot(mdt, aes(x = bps, y = bonus_frac)) +
+  theme_minimal() + 
+  geom_jitter(width = 0.25, height= 0.025, col = &quot;darkgrey&quot;) +
+  geom_ribbon(aes(x = bps, ymin = pi.low, ymax = pi.hi), fill = &quot;orange&quot;, colour=NA, alpha = .3) + 
+  geom_line(aes(x = bps, y = fit)) + 
+  coord_cartesian(xlim = c(ql, qu))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-11-1.png" width="1152" /> I’m not sure about the prediction intervals from the package <code>HH</code>, but this is a different topic, not of focus in this post. It looks like it under predicts cases where <code>bonus = 3</code>. There isn’t a clear single relationship for bps v bonus. This makes sense as each fixture differs e.g. number of goals, clean sheets etc.</p>
+</div>
+<div id="playing-team" class="section level4">
+<h4>Playing Team</h4>
+<p>Lets add in random slope and intercept parameters by team. A team that generally scores more <code>bps</code> values, like Man City, will require a higher threshold to receive bonus points. A low scoring team may require fewer points for a player to out rank the others in their team e.g. West Brom.</p>
+<pre class="r"><code># same slope, but varying intercept
+mod1 &lt;- glm(bonus_frac ~ bps + team, data = mdt, family = quasibinomial(&quot;logit&quot;))
+summary(mod1)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = bonus_frac ~ bps + team, family = quasibinomial(&quot;logit&quot;), 
+##     data = mdt)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.7973  -0.4443  -0.2495   0.1900   2.7777  
+## 
+## Coefficients:
+##                     Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)        -10.15490    0.38904 -26.103  &lt; 2e-16 ***
+## bps                  0.29101    0.01037  28.075  &lt; 2e-16 ***
+## teamBournemouth      1.39503    0.31706   4.400 1.12e-05 ***
+## teamBrighton         1.35424    0.30321   4.466 8.24e-06 ***
+## teamBurnley          1.60826    0.29819   5.393 7.42e-08 ***
+## teamChelsea          0.45206    0.29693   1.522 0.128000    
+## teamCrystal Palace   1.17145    0.30487   3.843 0.000124 ***
+## teamEverton          1.05035    0.31189   3.368 0.000767 ***
+## teamHuddersfield     1.10005    0.33540   3.280 0.001050 ** 
+## teamLeicester        1.24277    0.30584   4.063 4.95e-05 ***
+## teamLiverpool       -0.01562    0.29486  -0.053 0.957758    
+## teamMan City         0.19285    0.27856   0.692 0.488793    
+## teamMan Utd          0.63435    0.28229   2.247 0.024699 *  
+## teamNewcastle        1.42710    0.31858   4.480 7.74e-06 ***
+## teamSouthampton      1.08735    0.32250   3.372 0.000756 ***
+## teamSpurs            0.49830    0.29783   1.673 0.094402 .  
+## teamStoke            1.62716    0.31862   5.107 3.47e-07 ***
+## teamSwansea          1.34959    0.31498   4.285 1.88e-05 ***
+## teamWatford          1.17241    0.31731   3.695 0.000224 ***
+## teamWest Brom        1.41681    0.31727   4.466 8.26e-06 ***
+## teamWest Ham         1.14874    0.31040   3.701 0.000219 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for quasibinomial family taken to be 0.7908184)
+## 
+##     Null deviance: 2576.4  on 3163  degrees of freedom
+## Residual deviance: 1193.2  on 3143  degrees of freedom
+## AIC: NA
+## 
+## Number of Fisher Scoring iterations: 6</code></pre>
+<pre class="r"><code>anova(mod0, mod1, test = &quot;Chisq&quot;)</code></pre>
+<pre><code>## Analysis of Deviance Table
+## 
+## Model 1: bonus_frac ~ bps
+## Model 2: bonus_frac ~ bps + team
+##   Resid. Df Resid. Dev Df Deviance  Pr(&gt;Chi)    
+## 1      3162     1282.5                          
+## 2      3143     1193.2 19   89.322 2.275e-15 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>mod1_fits &lt;- as.data.table(HH::interval(mod1, type = &quot;response&quot;))
+mdt &lt;- joinModelDt(mdt, mod1_fits)
+
+# view for 2 of the teams
+ggplot(mdt[team %in% c(&quot;Arsenal&quot;, &quot;Burnley&quot;),], aes(x = bps, y = bonus_frac, col = team)) +
+  theme_minimal() + 
+  geom_jitter(width = 0.25, height= 0.025) +
+  geom_ribbon(aes(x = bps, ymin = pi.low, ymax = pi.hi, fill = team), colour=NA, alpha = .3) + 
+  geom_line(aes(x = bps, y = fit)) + 
+  coord_cartesian(xlim = c(ql, qu))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-12-1.png" width="1152" /></p>
+<p>Can see there are significant effects for a varying intersect by team. A positive change in a team coefficient is interpreted to mean that for the same bps value, the probability of receiving bonus points increases. What’s interesting about comparing Arsenal to Burnley is that they finished in positions 6 and 7 respectively, yet have constrasting data. Arsenal scored 74 and conceded 51 goals whilst Burnley scored 36 and conceded 39. Therefore, Burnley were involved in a lot more low goal scoring matches. As we’ve seen, this would lower the amount of bps on average, thus lowering the amount required to receive bonus points.</p>
+<p>Added a chi-squared test to see if its significant in reduction of residual variance, which it is. Lets add in a random slope:</p>
+<pre class="r"><code># random slope and intercept
+mod2 &lt;- glm(bonus_frac ~ bps*team, data = mdt, family = quasibinomial(&quot;logit&quot;))
+summary(mod2)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = bonus_frac ~ bps * team, family = quasibinomial(&quot;logit&quot;), 
+##     data = mdt)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -3.1557  -0.4398  -0.2360   0.1911   2.3354  
+## 
+## Coefficients:
+##                         Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)            -8.012699   0.871087  -9.199  &lt; 2e-16 ***
+## bps                     0.222342   0.027552   8.070 9.93e-16 ***
+## teamBournemouth        -1.955828   1.639061  -1.193 0.232858    
+## teamBrighton           -5.260400   1.922914  -2.736 0.006261 ** 
+## teamBurnley            -5.329020   2.063670  -2.582 0.009859 ** 
+## teamChelsea            -0.501482   1.217725  -0.412 0.680501    
+## teamCrystal Palace     -2.991592   1.642678  -1.821 0.068677 .  
+## teamEverton            -0.891199   1.382628  -0.645 0.519254    
+## teamHuddersfield       -2.342217   1.646190  -1.423 0.154891    
+## teamLeicester          -2.770236   1.620470  -1.710 0.087453 .  
+## teamLiverpool           0.104863   1.140686   0.092 0.926759    
+## teamMan City            0.348489   1.143471   0.305 0.760566    
+## teamMan Utd            -4.334561   1.588673  -2.728 0.006400 ** 
+## teamNewcastle          -2.457623   1.708964  -1.438 0.150512    
+## teamSouthampton        -2.277352   1.627465  -1.399 0.161815    
+## teamSpurs               1.974498   1.075045   1.837 0.066354 .  
+## teamStoke              -3.385069   1.758091  -1.925 0.054267 .  
+## teamSwansea            -3.776955   1.880899  -2.008 0.044723 *  
+## teamWatford            -3.360131   1.787277  -1.880 0.060197 .  
+## teamWest Brom          -0.249222   1.493032  -0.167 0.867441    
+## teamWest Ham           -4.328224   1.836450  -2.357 0.018492 *  
+## bps:teamBournemouth     0.112830   0.057143   1.975 0.048411 *  
+## bps:teamBrighton        0.233006   0.067997   3.427 0.000619 ***
+## bps:teamBurnley         0.248034   0.074400   3.334 0.000867 ***
+## bps:teamChelsea         0.028360   0.039527   0.717 0.473133    
+## bps:teamCrystal Palace  0.140871   0.056270   2.503 0.012349 *  
+## bps:teamEverton         0.061561   0.046512   1.324 0.185750    
+## bps:teamHuddersfield    0.114380   0.055659   2.055 0.039960 *  
+## bps:teamLeicester       0.135730   0.055647   2.439 0.014778 *  
+## bps:teamLiverpool      -0.002666   0.035772  -0.075 0.940593    
+## bps:teamMan City       -0.003843   0.035950  -0.107 0.914887    
+## bps:teamMan Utd         0.164143   0.052214   3.144 0.001684 ** 
+## bps:teamNewcastle       0.133329   0.060562   2.202 0.027770 *  
+## bps:teamSouthampton     0.113774   0.057126   1.992 0.046498 *  
+## bps:teamSpurs          -0.053395   0.034436  -1.551 0.121112    
+## bps:teamStoke           0.178584   0.063858   2.797 0.005196 ** 
+## bps:teamSwansea         0.177836   0.066314   2.682 0.007363 ** 
+## bps:teamWatford         0.155312   0.062193   2.497 0.012567 *  
+## bps:teamWest Brom       0.050655   0.053080   0.954 0.339996    
+## bps:teamWest Ham        0.189735   0.064028   2.963 0.003066 ** 
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for quasibinomial family taken to be 0.5542199)
+## 
+##     Null deviance: 2576.4  on 3163  degrees of freedom
+## Residual deviance: 1139.0  on 3124  degrees of freedom
+## AIC: NA
+## 
+## Number of Fisher Scoring iterations: 6</code></pre>
+<pre class="r"><code>anova(mod1, mod2, test = &quot;Chisq&quot;)</code></pre>
+<pre><code>## Analysis of Deviance Table
+## 
+## Model 1: bonus_frac ~ bps + team
+## Model 2: bonus_frac ~ bps * team
+##   Resid. Df Resid. Dev Df Deviance  Pr(&gt;Chi)    
+## 1      3143     1193.2                          
+## 2      3124     1139.0 19   54.233 1.307e-12 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code># significant, so will re-assign mod1
+mod1 &lt;- mod2
+mod2 &lt;- NULL
+
+# extract p values and coefficients. plot deviation from main team: &quot;Arsenal&quot;
+find_i &lt;- grepl(&quot;(?&lt;!:)team&quot;, names(coef(mod1)), perl = TRUE)
+i_coefs &lt;- coef(mod1)[find_i]
+i_pvals &lt;- coef(summary(mod1))[,4][find_i] 
+find_s &lt;- grepl(&quot;(?&lt;=:)team&quot;, names(coef(mod1)), perl = TRUE)
+s_coefs &lt;- coef(mod1)[find_s]
+s_pvals &lt;- coef(summary(mod1))[,4][find_s] 
+team_coefs &lt;- data.table(team = gsub(&quot;team&quot;, &quot;&quot;, names(i_coefs)),
+                         intercept = i_coefs,
+                         slope = s_coefs,
+                         pval_i = i_pvals,
+                         pval_s = s_pvals)
+team_coefs[]</code></pre>
+<pre><code>##               team  intercept        slope      pval_i       pval_s
+##  1:    Bournemouth -1.9558283  0.112830006 0.232857641 0.0484106154
+##  2:       Brighton -5.2604004  0.233006182 0.006261078 0.0006188143
+##  3:        Burnley -5.3290200  0.248034301 0.009859470 0.0008666674
+##  4:        Chelsea -0.5014815  0.028360035 0.680500825 0.4731325881
+##  5: Crystal Palace -2.9915915  0.140870570 0.068677073 0.0123489265
+##  6:        Everton -0.8911990  0.061560846 0.519254018 0.1857502052
+##  7:   Huddersfield -2.3422166  0.114379994 0.154891012 0.0399598938
+##  8:      Leicester -2.7702359  0.135729889 0.087452869 0.0147777736
+##  9:      Liverpool  0.1048634 -0.002666070 0.926759467 0.9405929995
+## 10:       Man City  0.3484893 -0.003842552 0.760565946 0.9148867402
+## 11:        Man Utd -4.3345611  0.164142683 0.006399532 0.0016840558
+## 12:      Newcastle -2.4576228  0.133329207 0.150512156 0.0277700655
+## 13:    Southampton -2.2773523  0.113774279 0.161814934 0.0464984835
+## 14:          Spurs  1.9744977 -0.053395134 0.066354273 0.1211116161
+## 15:          Stoke -3.3850693  0.178584195 0.054267098 0.0051959407
+## 16:        Swansea -3.7769554  0.177835589 0.044722995 0.0073633705
+## 17:        Watford -3.3601315  0.155312209 0.060197219 0.0125665231
+## 18:      West Brom -0.2492217  0.050655484 0.867441229 0.3399962831
+## 19:       West Ham -4.3282235  0.189734841 0.018492466 0.0030662978</code></pre>
+<pre class="r"><code># see how slope and intercept change, by team. Not all are significant
+ggplot(team_coefs, aes(x = intercept, y = slope, label = team)) + 
+  geom_text_repel() + 
+  theme_minimal() + 
+  geom_vline(xintercept = 0) + 
+  geom_hline(yintercept = 0)</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-13-1.png" width="1152" /></p>
+<pre class="r"><code>mod1_fits &lt;- as.data.table(HH::interval(mod1, type = &quot;response&quot;))
+mdt &lt;- joinModelDt(mdt, mod1_fits)
+
+# view for 2 of the teams
+ggplot(mdt[team %in% c(&quot;Arsenal&quot;, &quot;Burnley&quot;),], aes(x = bps, y = bonus_frac, col = team)) +
+  theme_minimal() + 
+  geom_jitter(width = 0.25, height= 0.025) +
+  geom_ribbon(aes(x = bps, ymin = pi.low, ymax = pi.hi, fill = team), colour=NA, alpha = .3) + 
+  geom_line(aes(x = bps, y = fit)) + 
+  coord_cartesian(xlim = c(ql, qu))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-13-2.png" width="1152" /></p>
+<p>Arsenal is the baseline here. A positive change in the slope parameter means that the gradient of the slope is much steeper. For each value change in bps, our probability of receiving bonus points increases.</p>
+<p>Man Utd and West Brom points on the intercept v slope change graph are the most unusual, due to their overall league performance.</p>
+<pre class="r"><code>ggplot(mdt[team %in% c(&quot;West Brom&quot;, &quot;Man Utd&quot;),], aes(x = bps, y = bonus_frac, col = team)) +
+  theme_minimal() + 
+  geom_jitter(width = 0.25, height= 0.025) +
+  geom_ribbon(aes(x = bps, ymin = pi.low, ymax = pi.hi, fill = team), colour=NA, alpha = .3) + 
+  geom_line(aes(x = bps, y = fit)) + 
+  coord_cartesian(xlim = c(ql, qu))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-14-1.png" width="1152" /></p>
+<p>Overall impact, by team</p>
+<pre class="r"><code>mod1_fits &lt;- as.data.table(HH::interval(mod1, type = &quot;response&quot;))
+mdt &lt;- joinModelDt(mdt, mod1_fits)
+
+ggplot(mdt, aes(x = bps, y = bonus_frac)) +
+  theme_minimal() + 
+  geom_jitter(width = 0.25, height= 0.025, col = &quot;darkgrey&quot;) +
+  geom_ribbon(aes(x = bps, ymin = pi.low, ymax = pi.hi), fill = &quot;orange&quot;, colour=NA, alpha = .3) + 
+  geom_line(aes(x = bps, y = fit)) + 
+  facet_wrap(~team, ncol = 4) + 
+  coord_cartesian(xlim = c(ql, qu))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-15-1.png" width="1152" /></p>
+</div>
+<div id="opposition-team" class="section level4">
+<h4>Opposition Team</h4>
+<p>Lets look at the opposing team now. Is the threshold lower depending on who you are playing?</p>
+<pre class="r"><code>mod2 &lt;- glm(bonus_frac ~ bps + opponent_team, 
+            data = mdt, family = quasibinomial(&quot;logit&quot;))
+summary(mod2)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = bonus_frac ~ bps + opponent_team, family = quasibinomial(&quot;logit&quot;), 
+##     data = mdt)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.6067  -0.4568  -0.2670   0.2305   2.5321  
+## 
+## Coefficients:
+##                              Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)                 -8.985982   0.367777 -24.433  &lt; 2e-16 ***
+## bps                          0.268328   0.009199  29.170  &lt; 2e-16 ***
+## opponent_teamBournemouth     0.307390   0.311661   0.986  0.32406    
+## opponent_teamBrighton        0.064903   0.313800   0.207  0.83616    
+## opponent_teamBurnley         0.904796   0.307851   2.939  0.00332 ** 
+## opponent_teamChelsea         0.486483   0.329816   1.475  0.14031    
+## opponent_teamCrystal Palace  0.338749   0.306865   1.104  0.26972    
+## opponent_teamEverton         0.023138   0.317266   0.073  0.94187    
+## opponent_teamHuddersfield    0.163080   0.302778   0.539  0.59019    
+## opponent_teamLeicester       0.352596   0.319504   1.104  0.26986    
+## opponent_teamLiverpool       0.197475   0.346297   0.570  0.56855    
+## opponent_teamMan City       -0.233628   0.449286  -0.520  0.60310    
+## opponent_teamMan Utd         0.501350   0.325608   1.540  0.12373    
+## opponent_teamNewcastle       0.603530   0.301838   2.000  0.04564 *  
+## opponent_teamSouthampton     0.790074   0.304942   2.591  0.00962 ** 
+## opponent_teamSpurs           0.543048   0.350101   1.551  0.12097    
+## opponent_teamStoke           0.295907   0.308725   0.958  0.33789    
+## opponent_teamSwansea         0.238143   0.300521   0.792  0.42817    
+## opponent_teamWatford         0.454950   0.304839   1.492  0.13569    
+## opponent_teamWest Brom       0.718945   0.302945   2.373  0.01770 *  
+## opponent_teamWest Ham        0.288796   0.314732   0.918  0.35890    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for quasibinomial family taken to be 0.7210158)
+## 
+##     Null deviance: 2576.4  on 3163  degrees of freedom
+## Residual deviance: 1259.2  on 3143  degrees of freedom
+## AIC: NA
+## 
+## Number of Fisher Scoring iterations: 6</code></pre>
+<pre class="r"><code>anova(mod0, mod2, test = &quot;Chisq&quot;)</code></pre>
+<pre><code>## Analysis of Deviance Table
+## 
+## Model 1: bonus_frac ~ bps
+## Model 2: bonus_frac ~ bps + opponent_team
+##   Resid. Df Resid. Dev Df Deviance Pr(&gt;Chi)  
+## 1      3162     1282.5                       
+## 2      3143     1259.2 19   23.401  0.02775 *
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>mod2_fits &lt;- as.data.table(HH::interval(mod2, type = &quot;response&quot;))
+mdt &lt;- joinModelDt(mdt, mod2_fits)
+
+select_teams &lt;- c(&quot;Man City&quot;, &quot;Burnley&quot;)
+smdt &lt;- mdt[opponent_team %in% select_teams,]
+
+ggplot(smdt, aes(x = bps, y = bonus_frac, col = opponent_team)) +
+  theme_minimal() + 
+  geom_jitter(width = 0.25, height= 0.025) +
+  geom_ribbon(aes(x = bps, ymin = pi.low, ymax = pi.hi, fill = opponent_team), colour=NA, alpha = .2) + 
+  geom_line(aes(x = bps, y = fit)) + 
+  coord_cartesian(xlim = c(ql, qu))</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-16-1.png" width="1152" /></p>
+<p>There aren’t many significant effects here. However, bear in mind that if the main level changed from Arsenal to Burnley, there would be more significant effects, as the hypothesis is testing whether the intercept changes against the main level.</p>
+<p>In addition, there are much fewer observations for players who scored bonus points against Man City because of how well they did (see below). This is verified with them possessing the lowest intercept estimate in the model.</p>
+<pre class="r"><code>sum_dt &lt;- dt[, .(bonus = sum(bonus)), by = team]
+  ggplot(sum_dt, aes(x = reorder(team, bonus), y = bonus)) +
+    geom_bar(stat = &quot;identity&quot;, aes(y = bonus), fill = &quot;orange&quot;) +
+    coord_flip() + 
+    theme_minimal() + 
+    ylab(&quot;Team&quot;) + 
+    xlab(&quot;Overall bonus points&quot;) </code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-17-1.png" width="1152" /></p>
+</div>
+<div id="playing-position" class="section level4">
+<h4>Playing Position</h4>
+<p>We can also look at the impact of position on bonus points. People in different positions may do well based on differing circumstance, and may correlate with the performance of players in other positions.</p>
+<p>We can check this by looking at whether certain positions score together (below). In this case I took all fixtures where Goalkeepers received a bonus point. The mosaic plots below show that when they score, defenders often score too, way more than for fixtures where Goalkeepers don’t score.</p>
+<pre class="r"><code>gkp_fixtures &lt;- dt[bonus &gt; 0 &amp; position == &quot;GKP&quot;, fixture]
+fdt &lt;- dt[fixture %in% gkp_fixtures &amp; bonus &gt; 0 &amp; position != &quot;GKP&quot;,]
+odt &lt;- dt[!fixture %in% gkp_fixtures &amp; bonus &gt; 0,]
+plot(table(fdt$position, fdt$bonus), main = &quot;bonus distribution (GKP receives bonus)&quot;,
+     col = &quot;cadetblue1&quot;)</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-18-1.png" width="1152" /></p>
+<pre class="r"><code>plot(table(odt$position, odt$bonus), main = &quot;bonus distribution (GKP doesn&#39;t receives bonus)&quot;,
+     col = &quot;orange&quot;)</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-18-2.png" width="1152" /></p>
+<p>Lets look at how position affects our base model:</p>
+<pre class="r"><code>mod3 &lt;- glm(bonus_frac ~ bps*position, 
+            data = mdt, family = quasibinomial(&quot;logit&quot;))
+summary(mod3)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = bonus_frac ~ bps * position, family = quasibinomial(&quot;logit&quot;), 
+##     data = mdt)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.4849  -0.4502  -0.2696   0.2024   2.4574  
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)     -9.73053    0.47255 -20.591  &lt; 2e-16 ***
+## bps              0.29969    0.01639  18.282  &lt; 2e-16 ***
+## positionFWD      3.56880    0.80861   4.413 1.05e-05 ***
+## positionGKP     -3.07077    1.29974  -2.363 0.018208 *  
+## positionMID      2.37081    0.59604   3.978 7.12e-05 ***
+## bps:positionFWD -0.09857    0.02755  -3.578 0.000352 ***
+## bps:positionGKP  0.12779    0.04633   2.758 0.005842 ** 
+## bps:positionMID -0.07396    0.02052  -3.604 0.000318 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for quasibinomial family taken to be 0.7142216)
+## 
+##     Null deviance: 2576.4  on 3163  degrees of freedom
+## Residual deviance: 1232.8  on 3156  degrees of freedom
+## AIC: NA
+## 
+## Number of Fisher Scoring iterations: 6</code></pre>
+<pre class="r"><code># compare to base
+anova(mod0, mod3, test = &quot;Chisq&quot;)</code></pre>
+<pre><code>## Analysis of Deviance Table
+## 
+## Model 1: bonus_frac ~ bps
+## Model 2: bonus_frac ~ bps * position
+##   Resid. Df Resid. Dev Df Deviance  Pr(&gt;Chi)    
+## 1      3162     1282.5                          
+## 2      3156     1232.8  6   49.707 4.948e-13 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>mod3_fits &lt;- as.data.table(HH::interval(mod3, type = &quot;response&quot;))
+mdt &lt;- joinModelDt(mdt, mod3_fits)
+
+ggplot(mdt, aes(x = bps, y = bonus_frac)) +
+  theme_minimal() + 
+  geom_ribbon(aes(x = bps, ymin = pi.low, ymax = pi.hi, fill = position), colour=NA, alpha = .2) + 
+  geom_line(aes(x = bps, y = fit, col = position)) + 
+  coord_cartesian(xlim = c(ql, qu)) </code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-19-1.png" width="1152" /></p>
+<p>All effects are significant, for both the slope and intercept.</p>
+<p>When keepers do well the probability of receiving bonus points has a steeper inclination. Often when keepers do really well, they keep a clean sheet and make lots of saves. If a team dominates a match, it increases likelihood of a clean sheet, but reduces the number of saves required. Therefore, we would presume if a keeper has a clean sheet and lots of saves, then the attacking side of the team has not been brilliant, increasing the bonus points chances.</p>
+</div>
+<div id="final-model" class="section level4">
+<h4>Final Model</h4>
+<p>Bringing it all together in to one model:</p>
+<pre class="r"><code>mod4 &lt;- glm(bonus_frac ~ bps*position + bps*team + opponent_team, 
+            data = mdt, family = quasibinomial(&quot;logit&quot;))
+summary(mod4)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = bonus_frac ~ bps * position + bps * team + opponent_team, 
+##     family = quasibinomial(&quot;logit&quot;), data = mdt)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -3.0221  -0.4167  -0.2200   0.1663   2.3065  
+## 
+## Coefficients:
+##                               Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)                 -10.363937   1.012391 -10.237  &lt; 2e-16 ***
+## bps                           0.282218   0.031278   9.023  &lt; 2e-16 ***
+## positionFWD                   3.363988   0.751740   4.475 7.92e-06 ***
+## positionGKP                  -1.063437   1.210572  -0.878 0.379763    
+## positionMID                   2.842557   0.568901   4.997 6.16e-07 ***
+## teamBournemouth              -1.784123   1.733690  -1.029 0.303518    
+## teamBrighton                 -4.712132   1.999768  -2.356 0.018518 *  
+## teamBurnley                  -4.411962   2.128178  -2.073 0.038244 *  
+## teamChelsea                   0.001621   1.249496   0.001 0.998965    
+## teamCrystal Palace           -2.699189   1.708843  -1.580 0.114314    
+## teamEverton                  -0.512792   1.436005  -0.357 0.721044    
+## teamHuddersfield             -1.573900   1.707231  -0.922 0.356652    
+## teamLeicester                -2.505850   1.676633  -1.495 0.135128    
+## teamLiverpool                -0.017930   1.186629  -0.015 0.987945    
+## teamMan City                 -0.009308   1.184156  -0.008 0.993729    
+## teamMan Utd                  -4.347171   1.640862  -2.649 0.008106 ** 
+## teamNewcastle                -1.949766   1.771259  -1.101 0.271078    
+## teamSouthampton              -2.123986   1.677496  -1.266 0.205549    
+## teamSpurs                     1.997468   1.100375   1.815 0.069581 .  
+## teamStoke                    -2.776713   1.842227  -1.507 0.131846    
+## teamSwansea                  -3.083238   1.934112  -1.594 0.111008    
+## teamWatford                  -2.608229   1.828297  -1.427 0.153799    
+## teamWest Brom                 0.462427   1.559346   0.297 0.766828    
+## teamWest Ham                 -3.448922   1.875156  -1.839 0.065971 .  
+## opponent_teamBournemouth      0.430771   0.297272   1.449 0.147417    
+## opponent_teamBrighton         0.132518   0.300077   0.442 0.658800    
+## opponent_teamBurnley          1.048318   0.296459   3.536 0.000412 ***
+## opponent_teamChelsea          0.542341   0.324731   1.670 0.094995 .  
+## opponent_teamCrystal Palace   0.374288   0.291481   1.284 0.199207    
+## opponent_teamEverton          0.080855   0.302040   0.268 0.788952    
+## opponent_teamHuddersfield     0.256432   0.289185   0.887 0.375288    
+## opponent_teamLeicester        0.343381   0.304389   1.128 0.259366    
+## opponent_teamLiverpool        0.175527   0.329964   0.532 0.594793    
+## opponent_teamMan City        -0.319314   0.421159  -0.758 0.448402    
+## opponent_teamMan Utd          0.448074   0.313720   1.428 0.153317    
+## opponent_teamNewcastle        0.579818   0.291071   1.992 0.046457 *  
+## opponent_teamSouthampton      0.841817   0.292976   2.873 0.004089 ** 
+## opponent_teamSpurs            0.671519   0.336847   1.994 0.046289 *  
+## opponent_teamStoke            0.361234   0.292094   1.237 0.216291    
+## opponent_teamSwansea          0.249960   0.285858   0.874 0.381956    
+## opponent_teamWatford          0.432945   0.291775   1.484 0.137955    
+## opponent_teamWest Brom        0.851801   0.293024   2.907 0.003676 ** 
+## opponent_teamWest Ham         0.211720   0.299387   0.707 0.479508    
+## bps:positionFWD              -0.096652   0.025400  -3.805 0.000144 ***
+## bps:positionGKP               0.049272   0.043444   1.134 0.256818    
+## bps:positionMID              -0.090926   0.019467  -4.671 3.13e-06 ***
+## bps:teamBournemouth           0.108319   0.060343   1.795 0.072743 .  
+## bps:teamBrighton              0.214142   0.070681   3.030 0.002468 ** 
+## bps:teamBurnley               0.217304   0.076807   2.829 0.004696 ** 
+## bps:teamChelsea               0.014407   0.040377   0.357 0.721256    
+## bps:teamCrystal Palace        0.132281   0.058458   2.263 0.023714 *  
+## bps:teamEverton               0.049592   0.048219   1.028 0.303807    
+## bps:teamHuddersfield          0.083740   0.057540   1.455 0.145680    
+## bps:teamLeicester             0.124884   0.057426   2.175 0.029729 *  
+## bps:teamLiverpool             0.004432   0.037013   0.120 0.904692    
+## bps:teamMan City              0.009707   0.037126   0.261 0.793754    
+## bps:teamMan Utd               0.166622   0.053866   3.093 0.001997 ** 
+## bps:teamNewcastle             0.116442   0.062549   1.862 0.062754 .  
+## bps:teamSouthampton           0.111759   0.058829   1.900 0.057564 .  
+## bps:teamSpurs                -0.051631   0.034926  -1.478 0.139438    
+## bps:teamStoke                 0.158650   0.066700   2.379 0.017441 *  
+## bps:teamSwansea               0.152319   0.067945   2.242 0.025046 *  
+## bps:teamWatford               0.128264   0.063168   2.031 0.042389 *  
+## bps:teamWest Brom             0.027491   0.055431   0.496 0.619964    
+## bps:teamWest Ham              0.160109   0.065238   2.454 0.014174 *  
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for quasibinomial family taken to be 0.5944065)
+## 
+##     Null deviance: 2576.4  on 3163  degrees of freedom
+## Residual deviance: 1084.1  on 3099  degrees of freedom
+## AIC: NA
+## 
+## Number of Fisher Scoring iterations: 6</code></pre>
+<pre class="r"><code># performance is a lot better than for the base model with only bps slope.
+anova(mod0, mod4, test = &quot;Chisq&quot;)</code></pre>
+<pre><code>## Analysis of Deviance Table
+## 
+## Model 1: bonus_frac ~ bps
+## Model 2: bonus_frac ~ bps * position + bps * team + opponent_team
+##   Resid. Df Resid. Dev Df Deviance  Pr(&gt;Chi)    
+## 1      3162     1282.5                          
+## 2      3099     1084.1 63   198.46 &lt; 2.2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code># performance isn&#39;t too much better than mod1, with the team effects.
+# Parsimony could be measured by looking at a statistic that penalises model 
+# complexity e.g. AIC.
+anova(mod1, mod4, test = &quot;Chisq&quot;)</code></pre>
+<pre><code>## Analysis of Deviance Table
+## 
+## Model 1: bonus_frac ~ bps * team
+## Model 2: bonus_frac ~ bps * position + bps * team + opponent_team
+##   Resid. Df Resid. Dev Df Deviance  Pr(&gt;Chi)    
+## 1      3124     1139.0                          
+## 2      3099     1084.1 25     54.9 1.174e-09 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code># predict with main data
+mod4_fits &lt;- as.data.table(HH::interval(mod4, type = &quot;response&quot;, newdata = dt))
+dt &lt;- joinModelDt(dt, mod4_fits)
+dt[bps &lt;= ql, fit := 0]
+
+# residuals top and bottom
+sum_dt &lt;- dt[, .(bonus = sum(bonus),
+                 fit = round(sum(fit*3), 1),
+                 bps = sum(bps)), by = .(team, position, player_name)]
+sum_dt[, residual := bonus - fit]
+setorder(sum_dt, +residual)
+head(sum_dt)</code></pre>
+<pre><code>##            team position         player_name bonus  fit bps residual
+## 1:     Man City      DEF         Kyle_Walker     8 13.1 697     -5.1
+## 2:      Arsenal      FWD Alexandre_Lacazette    11 15.9 551     -4.9
+## 3:    West Brom      FWD      Salomon_Rondon     5  9.5 285     -4.5
+## 4:        Stoke      FWD    Mame Biram_Diouf     8 12.2 361     -4.2
+## 5:    Leicester      MID        Riyad_Mahrez    19 23.1 683     -4.1
+## 6: Huddersfield      GKP         Jonas_Lossl    11 15.1 701     -4.1</code></pre>
+<pre class="r"><code>tail(sum_dt)</code></pre>
+<pre><code>##              team position       player_name bonus  fit bps residual
+## 1:          Spurs      MID Christian_Eriksen    23 18.2 826      4.8
+## 2: Crystal Palace      DEF     Mamadou_Sakho    18 13.1 405      4.9
+## 3:        Burnley      FWD        Chris_Wood    20 14.9 320      5.1
+## 4:       Man City      DEF  Nicolas_Otamendi    21 14.2 742      6.8
+## 5:       Man City      MID       David_Silva    26 19.1 672      6.9
+## 6:        Arsenal      DEF Laurent_Koscielny    16  8.2 556      7.8</code></pre>
+<pre class="r"><code># plot the fits, by position, across the whole season
+ggplot(sum_dt, aes(x = bonus, y = fit)) + 
+geom_point(col = &quot;darkgrey&quot;) + 
+geom_abline(slope = 1, intercept = 0) + 
+theme_minimal() + 
+facet_wrap(~position)</code></pre>
+<p><img src="/post/2018-08-14-bps_tutorial_files/figure-html/unnamed-chunk-20-1.png" width="1152" /></p>
+</div>
+</div>
+</div>
+<div id="final-thoughts" class="section level2">
+<h2>Final Thoughts</h2>
+<p>In this post I’ve been practicing visualising patterns in the fpl bonus point data for different teams and positions. Logistic regression for a quasibinomial distribution was used to generate the predictions and analyse different variables.</p>
+<p>An extension of this would be to try to focus on the interaction between players within their own teams, by creating new variables e.g. we saw that Goalkeepers and Defenders often score together. The effect of playing at Home could be added to the analysis too.</p>
+<p>It may be possible to cluster fixtures together based on the score, and treat this as a categorical variable in the model. I strayed away from using any data that would interact with the bps variable though, as its dependent on the number of goals scored.</p>
+<p>I haven’t focussed in on specific players during this, and there are other interesting views that could be explored e.g. player form, and patterns in transfer behaviour.</p>
+<p>We have the core data that make up the bps final score. It would be more complicated to do so, but we could model the individual event distributions e.g. probability of scoring a goal, and try to predict these events to estimate bps for future fixtures. We would run in to situations with sparse data e.g. there are only 17 red cards in the data set.</p>
+</div>
