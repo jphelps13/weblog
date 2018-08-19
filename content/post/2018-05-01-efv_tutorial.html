@@ -1,0 +1,293 @@
+---
+title: Makeover Monday - Economic Freedom Visualisation
+author: "Jonathan Phelps"
+date: '2018-05-01'
+slug: efv_tutorial
+categories:
+  - data visualisation
+tags:
+  - R
+  - shiny
+  - plotly
+  - makeover monday
+keywords:
+  - economic freedom
+  - makeover monday
+output:
+  blogdown::html_page:
+  # html_document:
+    toc: true
+    toc_depth: 4
+editor_options:
+  chunk_output_type: console
+thumbnailImagePosition: left
+thumbnailImage: https://lh3.googleusercontent.com/JVHmqfyofF8W_jb5dTbIVM1YXXKsGD3F505XEQ6jRgX8PIzIrkyjiREOCNNG0k7Z1_QtwLLzCG3NLv4q5ASol68tbmJVROfNFIJZvM2jlilVN7D1wX2ju--I5X4FY7cUlpxEOWcyfOxI3OirS-k_xte7WRegyAUTiA9HVF5HoXJuSfEsytY5tEf1eu_BeId1jItdGN_XiJdgNnVu9c1nIZrSeSsZUPqAeRRs7aT0r_foHMnKSQAfR7o-3VWf2uasAMvAaEhXNaIGnS4r3QLiPZ7RQEMyh2U2-ixp7Dvm1d2SAW7W029VxtXUuFcWeJOZgRqsqZ1jnrPfHUhOfoGCzlKDiHY6HCOdpwRHpgiZt2blyvTfk_6UH3WLvSKnCzmTVhHjFtwykMxGdAhwiTx-mX2ytWPBFpAbErLkdE3e_ZkHlLIDFbLVaHd-jI1o9rAkDtml9G-vvPlP9PmMeKnULaBHX6sCJpuo8ZAyVGyJfObUqaIN96O5O0_tfbB-KRgGt4LSaugOocsINjhs6kw76g-FLv_qppw3FolPrX0Oy0uJWJfcUVcFaY1y6aJIXxYtWYUjMwMToi9vLGUErSg7qn6PWawhalfQyspgZvqq=w841-h726-no
+---
+
+<script src="/rmarkdown-libs/htmlwidgets/htmlwidgets.js"></script>
+<script src="/rmarkdown-libs/plotly-binding/plotly.js"></script>
+<script src="/rmarkdown-libs/typedarray/typedarray.min.js"></script>
+<script src="/rmarkdown-libs/jquery/jquery.min.js"></script>
+<link href="/rmarkdown-libs/crosstalk/css/crosstalk.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/crosstalk/js/crosstalk.min.js"></script>
+<link href="/rmarkdown-libs/plotly-htmlwidgets-css/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/plotly-main/plotly-latest.min.js"></script>
+
+<div id="TOC">
+<ul>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#data-processing">Data processing</a></li>
+<li><a href="#data-visualisations">Data Visualisations</a></li>
+<li><a href="#shiny-app">Shiny App</a></li>
+</ul>
+</div>
+
+<div id="overview" class="section level2">
+<h2>Overview</h2>
+<p>Makeover Monday is a website which posts interesting data sets and related articles, each Monday. The aim is to experiment with data visualisations to extract new insights and views from the data.</p>
+<p>In this post, I am looking at data for this makeover monday: <a href="https://www.makeovermonday.co.uk/week9-2018/" class="uri">https://www.makeovermonday.co.uk/week9-2018/</a>.</p>
+<p>Data is at <a href="https://data.world/makeovermonday/2018w9-world-economic-freedom" class="uri">https://data.world/makeovermonday/2018w9-world-economic-freedom</a>. The original source and use of the data: <a href="https://www.fraserinstitute.org/economic-freedom/map?geozone=world&amp;page=map&amp;year=2015" class="uri">https://www.fraserinstitute.org/economic-freedom/map?geozone=world&amp;page=map&amp;year=2015</a>.</p>
+<p>The data has 5 KPI variables, each on a scale from 0 to 10, with 10 being the best value:</p>
+<ul>
+<li>FreedomToTradeInternationally</li>
+<li>LegalSystemAndPropertyRights</li>
+<li>Regulation</li>
+<li>SizeOfGovernment</li>
+<li>Sound Money</li>
+</ul>
+<p>Each has an equal weight, to create a <code>SummaryIndex</code> column. Each country has a single observation for each Year, although not all countries have values for each Year. The Index started in 1970 with 53 teams, whilst 106 Countries have joined since e.g. Vietnam in 2003.</p>
+<p>The final dashboard can be found <strong><a href="https://jp-insights.shinyapps.io/SummaryIndexExplorer/">here</a></strong></p>
+</div>
+<div id="data-processing" class="section level2">
+<h2>Data processing</h2>
+<p>data, cleaning and plotting scripts are in the R package <code>utils.economicfreedomvis</code>, in my GitHub repo, if you want to play along, otherwise the repo can be forked. Load up the packages below for running the Shiny app and processing the data.</p>
+<pre class="r"><code>if(FALSE){
+  # install pacakges
+  devtools::install_github(&quot;ropensci/plotly&quot;)
+  devtools::install_github(&quot;jphelps13/small.projects&quot;,
+                           subdir = &quot;2018-05-01-EconomicFreedomVis&quot;)
+}
+
+# data and script code
+library(utils.economicfreedomvis)
+
+# data manipulation 
+library(stringr)
+library(magrittr)
+library(data.table)
+
+# shiny and plotting libraries
+library(shinythemes)
+library(shiny)
+library(plotly)
+library(RColorBrewer)</code></pre>
+<p>Data is loaded from the package. Can see the head of the data, and bar plot of when each countries had their first entry in the Economic Freedom Vis.</p>
+<pre class="r"><code># load data
+data(&quot;evf_data&quot;)
+head(evf_data)</code></pre>
+<pre><code>##    Year Iso_code Countries SummaryIndex SizeOfGovernment
+## 1: 2015      ALB   Albania     7.543627         7.963672
+## 2: 2015      DZA   Algeria     4.842521         3.559961
+## 3: 2015      AGO    Angola     5.402199         5.955686
+## 4: 2015      ARG Argentina     4.877356         4.869799
+## 5: 2015      ARM   Armenia     7.602355         7.117733
+## 6: 2015      AUS Australia     7.993726         6.592565
+##    LegalSystemAndPropertyRights SoundMoney FreedomToTradeInternationally
+## 1:                     5.003489   9.585625                      8.112452
+## 2:                     4.551817   6.852790                      4.008432
+## 3:                     2.960264   6.885465                      5.143998
+## 4:                     3.816362   6.455331                      3.730787
+## 5:                     5.777804   9.481225                      8.242619
+## 6:                     7.994811   9.360139                      7.600742
+##    Regulation
+## 1:   7.052895
+## 2:   5.239606
+## 3:   6.065583
+## 4:   5.514501
+## 5:   7.392394
+## 6:   8.420373</code></pre>
+<pre class="r"><code># when did each country start:
+first_year &lt;- evf_data[, .(Year = min(Year)), keyby = Countries][, .N, by = Year]
+ggplot(data = first_year, aes(x = Year, y = N)) + geom_col(fill = &quot;darkorange&quot;) + theme_minimal()</code></pre>
+<p><img src="/post/2018-05-01-efv_tutorial_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>I’m defining some lookups for ease of use in the shiny app for input sliders and for formatting graphs.</p>
+<pre class="r"><code># lookups used in the shiny app
+year_range    &lt;- range(evf_data$Year)
+all_countries &lt;- sort(unique(evf_data$Countries))
+all_metrics   &lt;- c(&quot;FreedomToTradeInternationally&quot;, &quot;LegalSystemAndPropertyRights&quot;, 
+                   &quot;Regulation&quot;, &quot;SizeOfGovernment&quot;, &quot;SoundMoney&quot;, &quot;SummaryIndex&quot;)
+# display in the UI with spaces
+display_metrics &lt;- stringr::str_replace_all(all_metrics,
+                                            &quot;([A-Z]{0,1}[^A-Z]*)([A-Z]*)&quot;,
+                                            &quot;\\1 \\2&quot;) %&gt;% trimws(.)
+# for radar plot, specify where line breaks are
+display_metrics2 &lt;- c(&quot;Freedom To\nTrade\nInternationally&quot;, &quot;Legal System And\nProperty Rights&quot;, 
+                      &quot;Regulation&quot;, &quot;Size Of\nGovernment&quot;, &quot;Sound Money&quot;, &quot;Summary Index&quot;
+)
+# remove summary index for these lookups - metrics for comparing with summaryIndex
+m &lt;- charmatch(&quot;SummaryIndex&quot;, all_metrics)
+all_metricsv2     &lt;- all_metrics[-m]
+display_metricsv2 &lt;- display_metrics[-m]
+display_metrics2v2 &lt;- display_metrics2[-m]</code></pre>
+<p>Originally I did these plots with the raw data for the metrics, and SummaryIndex. I found it easier to visualise the trends by smoothing the data, and imputing any missing years. Function below does this, and renames the raw values. I’ve used natural splines to achieve this. Can see the impact below:</p>
+<pre class="r"><code># Visualise when the recordings have occured. Can see from 1970 to 2000, 
+# only evey 5 years
+par(las = 2)
+plot(table(evf_data[Countries == &quot;Argentina&quot;, sort(unique(Year))]), ylab = &quot;&quot;)</code></pre>
+<p><img src="/post/2018-05-01-efv_tutorial_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<pre class="r"><code># smooth and impute missing values with splines
+evf_data_clean &lt;- preparePlotData(evf_data, all_metrics)
+
+# view natural spline smoothing for data sample
+ggplot(data = evf_data_clean[Countries == &quot;Argentina&quot;]) + 
+  geom_point(aes(x = Year, y = FreedomToTradeInternationally_raw)) +
+  geom_line(aes(x = Year, y = FreedomToTradeInternationally), 
+            linetype = 2) + theme_minimal() + ylab(&quot;&quot;)</code></pre>
+<p><img src="/post/2018-05-01-efv_tutorial_files/figure-html/unnamed-chunk-4-2.png" width="672" /></p>
+</div>
+<div id="data-visualisations" class="section level2">
+<h2>Data Visualisations</h2>
+<p>Firstly, I’ve defined some variables to control the graphics created.</p>
+<pre class="r"><code>plot_control &lt;- list(
+  palette = RColorBrewer::brewer.pal(3, &quot;Set1&quot;),
+  font_colour = &quot;black&quot;,
+  grid_colour = &quot;#d8d8d8&quot;,
+  bg_colour = &quot;#ffffff&quot;,
+  paper_colour = &quot;transparent&quot;
+)
+countries &lt;- c(&quot;Russia&quot;, &quot;Argentina&quot;)
+dis_metrics &lt;- c(&quot;Freedom To Trade Internationally&quot;, &quot;Summary Index&quot;)
+years &lt;- c(2000, 2015)</code></pre>
+<p>The plan is to build a shiny dashboard to compare economic freedom metrics across countries, to see how they change over time.</p>
+<p>The first plot I was keen to look at is one I saw used in Alberto Cairo’s book <a href="http://www.thefunctionalart.com/p/about-book.html">The Functional Art</a>. He made use of a <a href="http://www.thefunctionalart.com/2012/09/in-praise-of-connected-scatter-plots.html">Connected Scatter Plot</a> to show a 2d scatter plot change across time. Here is an example showing the impact of changes in <code>&quot;Freedom To Trade Internationally&quot;</code> in time against the overall <code>&quot;Summary Index&quot;</code>. Can see that for Argentina, the former has been consistently dropping from 2000 to 2015, and correlates with a decrease in the Index. For Russia, it hasn’t varied that much, but the Index has increased.</p>
+<pre class="r"><code>metrics &lt;- all_metrics[charmatch(dis_metrics, display_metrics)]
+pdt &lt;- evf_data_clean[CJ(countries, years[1]:years[2]),]
+plotlyTimeTrackPlot(copy(pdt), countries, dis_metrics, metrics, years,
+                    plot_control)</code></pre>
+<div id="htmlwidget-1" style="width:672px;height:480px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"visdat":{"466c3b981892":["function () ","plotlyVisDat"],"466c1f6f445":["function () ","data"],"466c5ac1f10":["function () ","data"],"466c3e0c4e24":["function () ","data"],"466c371167cc":["function () ","data"]},"cur_data":"466c371167cc","attrs":{"466c1f6f445":{"hoverinfo":"text","text":{},"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"x":{},"y":{},"mode":"lines","name":"Russia","legendgroup":"Russia","color":["#E41A1C"],"inherit":true},"466c5ac1f10":{"hoverinfo":"text","text":{},"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"x":{},"y":{},"mode":"markers","name":"Russia","size":{},"legendgroup":"Russia","showlegend":false,"color":["#E41A1C"],"inherit":true},"466c3e0c4e24":{"hoverinfo":"text","text":{},"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"x":{},"y":{},"mode":"lines","name":"Argentina","legendgroup":"Argentina","color":["#377EB8"],"inherit":true},"466c371167cc":{"hoverinfo":"text","text":{},"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"x":{},"y":{},"mode":"markers","name":"Argentina","size":{},"legendgroup":"Argentina","showlegend":false,"color":["#377EB8"],"inherit":true}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"xaxis":{"domain":[0,1],"automargin":true,"range":[3.5,7.59],"title":"Freedom To Trade Internationally","gridcolor":"rgba(216,216,216,1)","color":"black"},"yaxis":{"domain":[0,1],"automargin":true,"range":[4.39,7.29],"title":"Summary Index","gridcolor":"rgba(216,216,216,1)","color":"black"},"plot_bgcolor":"#ffffff","paper_bgcolor":"transparent","legend":{"font":{"color":"black"}},"hovermode":"closest","showlegend":true},"source":"A","config":{"modeBarButtonsToAdd":[{"name":"Collaborate","icon":{"width":1000,"ascent":500,"descent":-50,"path":"M487 375c7-10 9-23 5-36l-79-259c-3-12-11-23-22-31-11-8-22-12-35-12l-263 0c-15 0-29 5-43 15-13 10-23 23-28 37-5 13-5 25-1 37 0 0 0 3 1 7 1 5 1 8 1 11 0 2 0 4-1 6 0 3-1 5-1 6 1 2 2 4 3 6 1 2 2 4 4 6 2 3 4 5 5 7 5 7 9 16 13 26 4 10 7 19 9 26 0 2 0 5 0 9-1 4-1 6 0 8 0 2 2 5 4 8 3 3 5 5 5 7 4 6 8 15 12 26 4 11 7 19 7 26 1 1 0 4 0 9-1 4-1 7 0 8 1 2 3 5 6 8 4 4 6 6 6 7 4 5 8 13 13 24 4 11 7 20 7 28 1 1 0 4 0 7-1 3-1 6-1 7 0 2 1 4 3 6 1 1 3 4 5 6 2 3 3 5 5 6 1 2 3 5 4 9 2 3 3 7 5 10 1 3 2 6 4 10 2 4 4 7 6 9 2 3 4 5 7 7 3 2 7 3 11 3 3 0 8 0 13-1l0-1c7 2 12 2 14 2l218 0c14 0 25-5 32-16 8-10 10-23 6-37l-79-259c-7-22-13-37-20-43-7-7-19-10-37-10l-248 0c-5 0-9-2-11-5-2-3-2-7 0-12 4-13 18-20 41-20l264 0c5 0 10 2 16 5 5 3 8 6 10 11l85 282c2 5 2 10 2 17 7-3 13-7 17-13z m-304 0c-1-3-1-5 0-7 1-1 3-2 6-2l174 0c2 0 4 1 7 2 2 2 4 4 5 7l6 18c0 3 0 5-1 7-1 1-3 2-6 2l-173 0c-3 0-5-1-8-2-2-2-4-4-4-7z m-24-73c-1-3-1-5 0-7 2-2 3-2 6-2l174 0c2 0 5 0 7 2 3 2 4 4 5 7l6 18c1 2 0 5-1 6-1 2-3 3-5 3l-174 0c-3 0-5-1-7-3-3-1-4-4-5-6z"},"click":"function(gd) { \n        // is this being viewed in RStudio?\n        if (location.search == '?viewer_pane=1') {\n          alert('To learn about plotly for collaboration, visit:\\n https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html');\n        } else {\n          window.open('https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html', '_blank');\n        }\n      }"}],"cloud":false},"data":[{"hoverinfo":["text","text","text","text","text","text","text","text","text","text","text","text","text","text","text","text"],"text":["<\/br> Year: 2000 <\/br> FreedomToTradeInternationally: 6.2 <\/br> SummaryIndex: 5.39","<\/br> Year: 2001 <\/br> FreedomToTradeInternationally: 6.38 <\/br> SummaryIndex: 5.47","<\/br> Year: 2002 <\/br> FreedomToTradeInternationally: 6.52 <\/br> SummaryIndex: 5.8","<\/br> Year: 2003 <\/br> FreedomToTradeInternationally: 6.5 <\/br> SummaryIndex: 5.86","<\/br> Year: 2004 <\/br> FreedomToTradeInternationally: 6.15 <\/br> SummaryIndex: 6.17","<\/br> Year: 2005 <\/br> FreedomToTradeInternationally: 5.76 <\/br> SummaryIndex: 6.24","<\/br> Year: 2006 <\/br> FreedomToTradeInternationally: 5.61 <\/br> SummaryIndex: 6.31","<\/br> Year: 2007 <\/br> FreedomToTradeInternationally: 5.59 <\/br> SummaryIndex: 6.45","<\/br> Year: 2008 <\/br> FreedomToTradeInternationally: 5.45 <\/br> SummaryIndex: 6.52","<\/br> Year: 2009 <\/br> FreedomToTradeInternationally: 5.59 <\/br> SummaryIndex: 6.43","<\/br> Year: 2010 <\/br> FreedomToTradeInternationally: 5.8 <\/br> SummaryIndex: 6.54","<\/br> Year: 2011 <\/br> FreedomToTradeInternationally: 5.88 <\/br> SummaryIndex: 6.56","<\/br> Year: 2012 <\/br> FreedomToTradeInternationally: 6.05 <\/br> SummaryIndex: 6.64","<\/br> Year: 2013 <\/br> FreedomToTradeInternationally: 6.11 <\/br> SummaryIndex: 6.56","<\/br> Year: 2014 <\/br> FreedomToTradeInternationally: 6.09 <\/br> SummaryIndex: 6.61","<\/br> Year: 2015 <\/br> FreedomToTradeInternationally: 6.61 <\/br> SummaryIndex: 6.6"],"x":[6.2,6.38,6.52,6.5,6.15,5.76,5.61,5.59,5.45,5.59,5.8,5.88,6.05,6.11,6.09,6.61],"y":[5.39,5.47,5.8,5.86,6.17,6.24,6.31,6.45,6.52,6.43,6.54,6.56,6.64,6.56,6.61,6.6],"mode":"lines","name":"Russia","legendgroup":"Russia","type":"scatter","marker":{"color":"rgba(228,26,28,1)","line":{"color":"rgba(228,26,28,1)"}},"textfont":{"color":"rgba(228,26,28,1)"},"error_y":{"color":"rgba(228,26,28,1)"},"error_x":{"color":"rgba(228,26,28,1)"},"line":{"color":"rgba(228,26,28,1)"},"xaxis":"x","yaxis":"y","frame":null},{"hoverinfo":["text","text","text","text","text","text","text","text","text","text","text","text","text","text","text","text"],"text":["<\/br> Year: 2000 <\/br> FreedomToTradeInternationally: 6.2 <\/br> SummaryIndex: 5.39","<\/br> Year: 2001 <\/br> FreedomToTradeInternationally: 6.38 <\/br> SummaryIndex: 5.47","<\/br> Year: 2002 <\/br> FreedomToTradeInternationally: 6.52 <\/br> SummaryIndex: 5.8","<\/br> Year: 2003 <\/br> FreedomToTradeInternationally: 6.5 <\/br> SummaryIndex: 5.86","<\/br> Year: 2004 <\/br> FreedomToTradeInternationally: 6.15 <\/br> SummaryIndex: 6.17","<\/br> Year: 2005 <\/br> FreedomToTradeInternationally: 5.76 <\/br> SummaryIndex: 6.24","<\/br> Year: 2006 <\/br> FreedomToTradeInternationally: 5.61 <\/br> SummaryIndex: 6.31","<\/br> Year: 2007 <\/br> FreedomToTradeInternationally: 5.59 <\/br> SummaryIndex: 6.45","<\/br> Year: 2008 <\/br> FreedomToTradeInternationally: 5.45 <\/br> SummaryIndex: 6.52","<\/br> Year: 2009 <\/br> FreedomToTradeInternationally: 5.59 <\/br> SummaryIndex: 6.43","<\/br> Year: 2010 <\/br> FreedomToTradeInternationally: 5.8 <\/br> SummaryIndex: 6.54","<\/br> Year: 2011 <\/br> FreedomToTradeInternationally: 5.88 <\/br> SummaryIndex: 6.56","<\/br> Year: 2012 <\/br> FreedomToTradeInternationally: 6.05 <\/br> SummaryIndex: 6.64","<\/br> Year: 2013 <\/br> FreedomToTradeInternationally: 6.11 <\/br> SummaryIndex: 6.56","<\/br> Year: 2014 <\/br> FreedomToTradeInternationally: 6.09 <\/br> SummaryIndex: 6.61","<\/br> Year: 2015 <\/br> FreedomToTradeInternationally: 6.61 <\/br> SummaryIndex: 6.6"],"x":[6.2,6.38,6.52,6.5,6.15,5.76,5.61,5.59,5.45,5.59,5.8,5.88,6.05,6.11,6.09,6.61],"y":[5.39,5.47,5.8,5.86,6.17,6.24,6.31,6.45,6.52,6.43,6.54,6.56,6.64,6.56,6.61,6.6],"mode":"markers","name":"Russia","legendgroup":"Russia","showlegend":false,"type":"scatter","marker":{"color":"rgba(228,26,28,1)","size":[10,10.0142857670638,10.087110055549,10.298037762736,10.7613862697753,11.6262254416868,13.0763776273602,15.3304176595548,18.6416728548998,23.2982230138938,29.6229004209054,37.9732898441726,48.7417285358033,62.3553062317751,79.2758651519349,100],"sizemode":"area","line":{"color":"rgba(228,26,28,1)"}},"textfont":{"color":"rgba(228,26,28,1)","size":[10,10.0142857670638,10.087110055549,10.298037762736,10.7613862697753,11.6262254416868,13.0763776273602,15.3304176595548,18.6416728548998,23.2982230138938,29.6229004209054,37.9732898441726,48.7417285358033,62.3553062317751,79.2758651519349,100]},"error_y":{"color":"rgba(228,26,28,1)","width":[]},"error_x":{"color":"rgba(228,26,28,1)","width":[]},"line":{"color":"rgba(228,26,28,1)"},"xaxis":"x","yaxis":"y","frame":null},{"hoverinfo":["text","text","text","text","text","text","text","text","text","text","text","text","text","text","text","text"],"text":["<\/br> Year: 2000 <\/br> FreedomToTradeInternationally: 7.49 <\/br> SummaryIndex: 7.19","<\/br> Year: 2001 <\/br> FreedomToTradeInternationally: 7.23 <\/br> SummaryIndex: 6.78","<\/br> Year: 2002 <\/br> FreedomToTradeInternationally: 6.96 <\/br> SummaryIndex: 6.23","<\/br> Year: 2003 <\/br> FreedomToTradeInternationally: 6.82 <\/br> SummaryIndex: 6.1","<\/br> Year: 2004 <\/br> FreedomToTradeInternationally: 6.74 <\/br> SummaryIndex: 6.29","<\/br> Year: 2005 <\/br> FreedomToTradeInternationally: 6.42 <\/br> SummaryIndex: 5.99","<\/br> Year: 2006 <\/br> FreedomToTradeInternationally: 6.66 <\/br> SummaryIndex: 6.08","<\/br> Year: 2007 <\/br> FreedomToTradeInternationally: 6.75 <\/br> SummaryIndex: 6.19","<\/br> Year: 2008 <\/br> FreedomToTradeInternationally: 6.76 <\/br> SummaryIndex: 5.95","<\/br> Year: 2009 <\/br> FreedomToTradeInternationally: 6.41 <\/br> SummaryIndex: 5.92","<\/br> Year: 2010 <\/br> FreedomToTradeInternationally: 6.13 <\/br> SummaryIndex: 5.59","<\/br> Year: 2011 <\/br> FreedomToTradeInternationally: 5.71 <\/br> SummaryIndex: 5.58","<\/br> Year: 2012 <\/br> FreedomToTradeInternationally: 3.7 <\/br> SummaryIndex: 5.04","<\/br> Year: 2013 <\/br> FreedomToTradeInternationally: 3.69 <\/br> SummaryIndex: 4.85","<\/br> Year: 2014 <\/br> FreedomToTradeInternationally: 3.6 <\/br> SummaryIndex: 4.49","<\/br> Year: 2015 <\/br> FreedomToTradeInternationally: 3.73 <\/br> SummaryIndex: 4.88"],"x":[7.49,7.23,6.96,6.82,6.74,6.42,6.66,6.75,6.76,6.41,6.13,5.71,3.7,3.69,3.6,3.73],"y":[7.19,6.78,6.23,6.1,6.29,5.99,6.08,6.19,5.95,5.92,5.59,5.58,5.04,4.85,4.49,4.88],"mode":"lines","name":"Argentina","legendgroup":"Argentina","type":"scatter","marker":{"color":"rgba(55,126,184,1)","line":{"color":"rgba(55,126,184,1)"}},"textfont":{"color":"rgba(55,126,184,1)"},"error_y":{"color":"rgba(55,126,184,1)"},"error_x":{"color":"rgba(55,126,184,1)"},"line":{"color":"rgba(55,126,184,1)"},"xaxis":"x","yaxis":"y","frame":null},{"hoverinfo":["text","text","text","text","text","text","text","text","text","text","text","text","text","text","text","text"],"text":["<\/br> Year: 2000 <\/br> FreedomToTradeInternationally: 7.49 <\/br> SummaryIndex: 7.19","<\/br> Year: 2001 <\/br> FreedomToTradeInternationally: 7.23 <\/br> SummaryIndex: 6.78","<\/br> Year: 2002 <\/br> FreedomToTradeInternationally: 6.96 <\/br> SummaryIndex: 6.23","<\/br> Year: 2003 <\/br> FreedomToTradeInternationally: 6.82 <\/br> SummaryIndex: 6.1","<\/br> Year: 2004 <\/br> FreedomToTradeInternationally: 6.74 <\/br> SummaryIndex: 6.29","<\/br> Year: 2005 <\/br> FreedomToTradeInternationally: 6.42 <\/br> SummaryIndex: 5.99","<\/br> Year: 2006 <\/br> FreedomToTradeInternationally: 6.66 <\/br> SummaryIndex: 6.08","<\/br> Year: 2007 <\/br> FreedomToTradeInternationally: 6.75 <\/br> SummaryIndex: 6.19","<\/br> Year: 2008 <\/br> FreedomToTradeInternationally: 6.76 <\/br> SummaryIndex: 5.95","<\/br> Year: 2009 <\/br> FreedomToTradeInternationally: 6.41 <\/br> SummaryIndex: 5.92","<\/br> Year: 2010 <\/br> FreedomToTradeInternationally: 6.13 <\/br> SummaryIndex: 5.59","<\/br> Year: 2011 <\/br> FreedomToTradeInternationally: 5.71 <\/br> SummaryIndex: 5.58","<\/br> Year: 2012 <\/br> FreedomToTradeInternationally: 3.7 <\/br> SummaryIndex: 5.04","<\/br> Year: 2013 <\/br> FreedomToTradeInternationally: 3.69 <\/br> SummaryIndex: 4.85","<\/br> Year: 2014 <\/br> FreedomToTradeInternationally: 3.6 <\/br> SummaryIndex: 4.49","<\/br> Year: 2015 <\/br> FreedomToTradeInternationally: 3.73 <\/br> SummaryIndex: 4.88"],"x":[7.49,7.23,6.96,6.82,6.74,6.42,6.66,6.75,6.76,6.41,6.13,5.71,3.7,3.69,3.6,3.73],"y":[7.19,6.78,6.23,6.1,6.29,5.99,6.08,6.19,5.95,5.92,5.59,5.58,5.04,4.85,4.49,4.88],"mode":"markers","name":"Argentina","legendgroup":"Argentina","showlegend":false,"type":"scatter","marker":{"color":"rgba(55,126,184,1)","size":[10,10.0142857670638,10.087110055549,10.298037762736,10.7613862697753,11.6262254416868,13.0763776273602,15.3304176595548,18.6416728548998,23.2982230138938,29.6229004209054,37.9732898441726,48.7417285358033,62.3553062317751,79.2758651519349,100],"sizemode":"area","line":{"color":"rgba(55,126,184,1)"}},"textfont":{"color":"rgba(55,126,184,1)","size":[10,10.0142857670638,10.087110055549,10.298037762736,10.7613862697753,11.6262254416868,13.0763776273602,15.3304176595548,18.6416728548998,23.2982230138938,29.6229004209054,37.9732898441726,48.7417285358033,62.3553062317751,79.2758651519349,100]},"error_y":{"color":"rgba(55,126,184,1)","width":[]},"error_x":{"color":"rgba(55,126,184,1)","width":[]},"line":{"color":"rgba(55,126,184,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1},"debounce":0},"base_url":"https://plot.ly"},"evals":["config.modeBarButtonsToAdd.0.click"],"jsHooks":[]}</script>
+<p>The second plot is an accompanying time series slope graph for the <code>SummaryIndex</code> for the same countries, across the period. This will help to identify the trends in changes, and isolate interesting time periods.</p>
+<pre class="r"><code>plotlySlopeGraph(copy(pdt), plot_control, countries, 
+                 metric = &quot;SummaryIndex&quot;, 
+                 display_metric = &quot;Summary Index&quot;)</code></pre>
+<div id="htmlwidget-2" style="width:672px;height:480px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="htmlwidget-2">{"x":{"visdat":{"466c12451031":["function () ","plotlyVisDat"],"466c16316fbc":["function () ","data"],"466c5a3c6873":["function () ","data"],"466c47f45ede":["function () ","data"],"466c6da658f2":["function () ","data"]},"cur_data":"466c6da658f2","attrs":{"466c16316fbc":{"hoverinfo":"text","text":{},"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"x":{},"y":{},"mode":"lines","type":"scatter","name":"Russia","legendgroup":"Russia","showlegend":false,"color":["#E41A1C"],"inherit":true},"466c5a3c6873":{"hoverinfo":"text","text":{},"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"x":{},"y":{},"mode":"markers","type":"scatter","name":"Russia","legendgroup":"Russia","showlegend":false,"color":["#E41A1C"],"marker":{"size":10},"inherit":true},"466c47f45ede":{"hoverinfo":"text","text":{},"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"x":{},"y":{},"mode":"lines","type":"scatter","name":"Argentina","legendgroup":"Argentina","showlegend":false,"color":["#377EB8"],"inherit":true},"466c6da658f2":{"hoverinfo":"text","text":{},"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"x":{},"y":{},"mode":"markers","type":"scatter","name":"Argentina","legendgroup":"Argentina","showlegend":false,"color":["#377EB8"],"marker":{"size":10},"inherit":true}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"xaxis":{"domain":[0,1],"automargin":true,"title":"","range":[1999,2016],"gridcolor":"transparent","color":"black"},"yaxis":{"domain":[0,1],"automargin":true,"range":[4.39,7.29],"title":"Summary Index","gridcolor":"transparent","color":"black"},"plot_bgcolor":"#ffffff","paper_bgcolor":"transparent","legend":{"font":{"color":"black"}},"hovermode":"closest","showlegend":false},"source":"A","config":{"modeBarButtonsToAdd":[{"name":"Collaborate","icon":{"width":1000,"ascent":500,"descent":-50,"path":"M487 375c7-10 9-23 5-36l-79-259c-3-12-11-23-22-31-11-8-22-12-35-12l-263 0c-15 0-29 5-43 15-13 10-23 23-28 37-5 13-5 25-1 37 0 0 0 3 1 7 1 5 1 8 1 11 0 2 0 4-1 6 0 3-1 5-1 6 1 2 2 4 3 6 1 2 2 4 4 6 2 3 4 5 5 7 5 7 9 16 13 26 4 10 7 19 9 26 0 2 0 5 0 9-1 4-1 6 0 8 0 2 2 5 4 8 3 3 5 5 5 7 4 6 8 15 12 26 4 11 7 19 7 26 1 1 0 4 0 9-1 4-1 7 0 8 1 2 3 5 6 8 4 4 6 6 6 7 4 5 8 13 13 24 4 11 7 20 7 28 1 1 0 4 0 7-1 3-1 6-1 7 0 2 1 4 3 6 1 1 3 4 5 6 2 3 3 5 5 6 1 2 3 5 4 9 2 3 3 7 5 10 1 3 2 6 4 10 2 4 4 7 6 9 2 3 4 5 7 7 3 2 7 3 11 3 3 0 8 0 13-1l0-1c7 2 12 2 14 2l218 0c14 0 25-5 32-16 8-10 10-23 6-37l-79-259c-7-22-13-37-20-43-7-7-19-10-37-10l-248 0c-5 0-9-2-11-5-2-3-2-7 0-12 4-13 18-20 41-20l264 0c5 0 10 2 16 5 5 3 8 6 10 11l85 282c2 5 2 10 2 17 7-3 13-7 17-13z m-304 0c-1-3-1-5 0-7 1-1 3-2 6-2l174 0c2 0 4 1 7 2 2 2 4 4 5 7l6 18c0 3 0 5-1 7-1 1-3 2-6 2l-173 0c-3 0-5-1-8-2-2-2-4-4-4-7z m-24-73c-1-3-1-5 0-7 2-2 3-2 6-2l174 0c2 0 5 0 7 2 3 2 4 4 5 7l6 18c1 2 0 5-1 6-1 2-3 3-5 3l-174 0c-3 0-5-1-7-3-3-1-4-4-5-6z"},"click":"function(gd) { \n        // is this being viewed in RStudio?\n        if (location.search == '?viewer_pane=1') {\n          alert('To learn about plotly for collaboration, visit:\\n https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html');\n        } else {\n          window.open('https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html', '_blank');\n        }\n      }"}],"cloud":false},"data":[{"hoverinfo":["text","text","text","text","text","text","text","text","text","text","text","text","text","text","text","text"],"text":["<\/br> Year: 2000 <\/br> SummaryIndex: 5.39","<\/br> Year: 2001 <\/br> SummaryIndex: 5.47","<\/br> Year: 2002 <\/br> SummaryIndex: 5.8","<\/br> Year: 2003 <\/br> SummaryIndex: 5.86","<\/br> Year: 2004 <\/br> SummaryIndex: 6.17","<\/br> Year: 2005 <\/br> SummaryIndex: 6.24","<\/br> Year: 2006 <\/br> SummaryIndex: 6.31","<\/br> Year: 2007 <\/br> SummaryIndex: 6.45","<\/br> Year: 2008 <\/br> SummaryIndex: 6.52","<\/br> Year: 2009 <\/br> SummaryIndex: 6.43","<\/br> Year: 2010 <\/br> SummaryIndex: 6.54","<\/br> Year: 2011 <\/br> SummaryIndex: 6.56","<\/br> Year: 2012 <\/br> SummaryIndex: 6.64","<\/br> Year: 2013 <\/br> SummaryIndex: 6.56","<\/br> Year: 2014 <\/br> SummaryIndex: 6.61","<\/br> Year: 2015 <\/br> SummaryIndex: 6.6"],"x":[2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015],"y":[5.39,5.47,5.8,5.86,6.17,6.24,6.31,6.45,6.52,6.43,6.54,6.56,6.64,6.56,6.61,6.6],"mode":"lines","type":"scatter","name":"Russia","legendgroup":"Russia","showlegend":false,"marker":{"color":"rgba(228,26,28,1)","line":{"color":"rgba(228,26,28,1)"}},"textfont":{"color":"rgba(228,26,28,1)"},"error_y":{"color":"rgba(228,26,28,1)"},"error_x":{"color":"rgba(228,26,28,1)"},"line":{"color":"rgba(228,26,28,1)"},"xaxis":"x","yaxis":"y","frame":null},{"hoverinfo":["text","text"],"text":["<\/br> Year: 2000 <\/br> SummaryIndex: 5.39","<\/br> Year: 2015 <\/br> SummaryIndex: 6.6"],"x":[2000,2015],"y":[5.39,6.6],"mode":"markers","type":"scatter","name":"Russia","legendgroup":"Russia","showlegend":false,"marker":{"color":"rgba(228,26,28,1)","size":10,"line":{"color":"rgba(228,26,28,1)"}},"textfont":{"color":"rgba(228,26,28,1)"},"error_y":{"color":"rgba(228,26,28,1)"},"error_x":{"color":"rgba(228,26,28,1)"},"line":{"color":"rgba(228,26,28,1)"},"xaxis":"x","yaxis":"y","frame":null},{"hoverinfo":["text","text","text","text","text","text","text","text","text","text","text","text","text","text","text","text"],"text":["<\/br> Year: 2000 <\/br> SummaryIndex: 7.19","<\/br> Year: 2001 <\/br> SummaryIndex: 6.78","<\/br> Year: 2002 <\/br> SummaryIndex: 6.23","<\/br> Year: 2003 <\/br> SummaryIndex: 6.1","<\/br> Year: 2004 <\/br> SummaryIndex: 6.29","<\/br> Year: 2005 <\/br> SummaryIndex: 5.99","<\/br> Year: 2006 <\/br> SummaryIndex: 6.08","<\/br> Year: 2007 <\/br> SummaryIndex: 6.19","<\/br> Year: 2008 <\/br> SummaryIndex: 5.95","<\/br> Year: 2009 <\/br> SummaryIndex: 5.92","<\/br> Year: 2010 <\/br> SummaryIndex: 5.59","<\/br> Year: 2011 <\/br> SummaryIndex: 5.58","<\/br> Year: 2012 <\/br> SummaryIndex: 5.04","<\/br> Year: 2013 <\/br> SummaryIndex: 4.85","<\/br> Year: 2014 <\/br> SummaryIndex: 4.49","<\/br> Year: 2015 <\/br> SummaryIndex: 4.88"],"x":[2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015],"y":[7.19,6.78,6.23,6.1,6.29,5.99,6.08,6.19,5.95,5.92,5.59,5.58,5.04,4.85,4.49,4.88],"mode":"lines","type":"scatter","name":"Argentina","legendgroup":"Argentina","showlegend":false,"marker":{"color":"rgba(55,126,184,1)","line":{"color":"rgba(55,126,184,1)"}},"textfont":{"color":"rgba(55,126,184,1)"},"error_y":{"color":"rgba(55,126,184,1)"},"error_x":{"color":"rgba(55,126,184,1)"},"line":{"color":"rgba(55,126,184,1)"},"xaxis":"x","yaxis":"y","frame":null},{"hoverinfo":["text","text"],"text":["<\/br> Year: 2000 <\/br> SummaryIndex: 7.19","<\/br> Year: 2015 <\/br> SummaryIndex: 4.88"],"x":[2000,2015],"y":[7.19,4.88],"mode":"markers","type":"scatter","name":"Argentina","legendgroup":"Argentina","showlegend":false,"marker":{"color":"rgba(55,126,184,1)","size":10,"line":{"color":"rgba(55,126,184,1)"}},"textfont":{"color":"rgba(55,126,184,1)"},"error_y":{"color":"rgba(55,126,184,1)"},"error_x":{"color":"rgba(55,126,184,1)"},"line":{"color":"rgba(55,126,184,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1},"debounce":0},"base_url":"https://plot.ly"},"evals":["config.modeBarButtonsToAdd.0.click"],"jsHooks":[]}</script>
+<p>The final plot is a breakdown of the Summary Index; a radar plot showing the most frequent set of values for the 5 KPI variables.</p>
+<pre class="r"><code>rdt &lt;- evf_data_clean[CJ(countries, years[2]),]
+plotlyRadarChart(copy(rdt), all_metrics, display_metrics2, countries,
+                 plot_control)</code></pre>
+<div id="htmlwidget-3" style="width:672px;height:480px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="htmlwidget-3">{"x":{"visdat":{"466c3b2a79eb":["function () ","plotlyVisDat"]},"cur_data":"466c3b2a79eb","attrs":{"466c3b2a79eb":{"mode":"line","alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"scatterpolar"},"466c3b2a79eb.1":{"mode":"line","alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"scatterpolar","r":[6.61,4.85,6.49,6.55,8.52,6.6,6.61],"theta":["Freedom To<br />Trade<br />Internationally","Legal System And<br />Property Rights","Regulation","Size Of<br />Government","Sound Money","Summary Index","Freedom To<br />Trade<br />Internationally"],"name":"Russia","color":["#E41A1C"],"inherit":true},"466c3b2a79eb.2":{"mode":"line","alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"scatterpolar","r":[3.73,3.82,5.51,4.87,6.46,4.88,3.73],"theta":["Freedom To<br />Trade<br />Internationally","Legal System And<br />Property Rights","Regulation","Size Of<br />Government","Sound Money","Summary Index","Freedom To<br />Trade<br />Internationally"],"name":"Argentina","color":["#377EB8"],"inherit":true}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"polar":{"bgcolor":"#ffffff","angularaxis":{"tickwidth":0,"linewidth":0},"radialaxis":{"side":"counterclockwise","showline":true,"linewidth":0,"tickwidth":0,"gridcolor":"#d8d8d8","gridwidth":1,"range":[0,10]}},"paper_bgcolor":"transparent","showlegend":false,"font":{"color":"black"},"hovermode":"closest"},"source":"A","config":{"modeBarButtonsToAdd":[{"name":"Collaborate","icon":{"width":1000,"ascent":500,"descent":-50,"path":"M487 375c7-10 9-23 5-36l-79-259c-3-12-11-23-22-31-11-8-22-12-35-12l-263 0c-15 0-29 5-43 15-13 10-23 23-28 37-5 13-5 25-1 37 0 0 0 3 1 7 1 5 1 8 1 11 0 2 0 4-1 6 0 3-1 5-1 6 1 2 2 4 3 6 1 2 2 4 4 6 2 3 4 5 5 7 5 7 9 16 13 26 4 10 7 19 9 26 0 2 0 5 0 9-1 4-1 6 0 8 0 2 2 5 4 8 3 3 5 5 5 7 4 6 8 15 12 26 4 11 7 19 7 26 1 1 0 4 0 9-1 4-1 7 0 8 1 2 3 5 6 8 4 4 6 6 6 7 4 5 8 13 13 24 4 11 7 20 7 28 1 1 0 4 0 7-1 3-1 6-1 7 0 2 1 4 3 6 1 1 3 4 5 6 2 3 3 5 5 6 1 2 3 5 4 9 2 3 3 7 5 10 1 3 2 6 4 10 2 4 4 7 6 9 2 3 4 5 7 7 3 2 7 3 11 3 3 0 8 0 13-1l0-1c7 2 12 2 14 2l218 0c14 0 25-5 32-16 8-10 10-23 6-37l-79-259c-7-22-13-37-20-43-7-7-19-10-37-10l-248 0c-5 0-9-2-11-5-2-3-2-7 0-12 4-13 18-20 41-20l264 0c5 0 10 2 16 5 5 3 8 6 10 11l85 282c2 5 2 10 2 17 7-3 13-7 17-13z m-304 0c-1-3-1-5 0-7 1-1 3-2 6-2l174 0c2 0 4 1 7 2 2 2 4 4 5 7l6 18c0 3 0 5-1 7-1 1-3 2-6 2l-173 0c-3 0-5-1-8-2-2-2-4-4-4-7z m-24-73c-1-3-1-5 0-7 2-2 3-2 6-2l174 0c2 0 5 0 7 2 3 2 4 4 5 7l6 18c1 2 0 5-1 6-1 2-3 3-5 3l-174 0c-3 0-5-1-7-3-3-1-4-4-5-6z"},"click":"function(gd) { \n        // is this being viewed in RStudio?\n        if (location.search == '?viewer_pane=1') {\n          alert('To learn about plotly for collaboration, visit:\\n https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html');\n        } else {\n          window.open('https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html', '_blank');\n        }\n      }"}],"cloud":false},"data":[{"mode":"line","type":"scatterpolar","marker":{"color":"rgba(31,119,180,1)","line":{"color":"rgba(31,119,180,1)"}},"line":{"color":"rgba(31,119,180,1)"},"frame":null},{"mode":"line","type":"scatterpolar","r":[6.61,4.85,6.49,6.55,8.52,6.6,6.61],"theta":["Freedom To<br />Trade<br />Internationally","Legal System And<br />Property Rights","Regulation","Size Of<br />Government","Sound Money","Summary Index","Freedom To<br />Trade<br />Internationally"],"name":"Russia","marker":{"color":"rgba(228,26,28,1)","line":{"color":"rgba(228,26,28,1)"}},"textfont":{"color":"rgba(228,26,28,1)"},"line":{"color":"rgba(228,26,28,1)"},"frame":null},{"mode":"line","type":"scatterpolar","r":[3.73,3.82,5.51,4.87,6.46,4.88,3.73],"theta":["Freedom To<br />Trade<br />Internationally","Legal System And<br />Property Rights","Regulation","Size Of<br />Government","Sound Money","Summary Index","Freedom To<br />Trade<br />Internationally"],"name":"Argentina","marker":{"color":"rgba(55,126,184,1)","line":{"color":"rgba(55,126,184,1)"}},"textfont":{"color":"rgba(55,126,184,1)"},"line":{"color":"rgba(55,126,184,1)"},"frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1},"debounce":0},"base_url":"https://plot.ly"},"evals":["config.modeBarButtonsToAdd.0.click"],"jsHooks":[]}</script>
+</div>
+<div id="shiny-app" class="section level2">
+<h2>Shiny App</h2>
+<p>I’m going to use a Shiny to bring these together. I’m experimenting with a dark theme for the app, so am changing the <code>plot_control</code> variable.</p>
+<pre class="r"><code>plot_control &lt;- list(
+  palette = RColorBrewer::brewer.pal(3, &quot;Set1&quot;),
+  font_colour = &quot;white&quot;,
+  grid_colour = &quot;#5f606b&quot;,
+  bg_colour = &quot;#37383d&quot;,
+  paper_colour = &quot;transparent&quot;
+)</code></pre>
+<p>Shiny requires both a UI and Server component:</p>
+<pre class="r"><code>ui &lt;- fluidPage(
+  
+  # Top row with information and controls
+  fluidRow(
+    # app information
+    column(5,
+           h2(&quot;Summary Index Explorer&quot;),
+           h4(&quot;Choose 2 Metrics &amp; 1-3 Countries&quot;, 
+              a(&quot;Link to original&quot;, href=&quot;https://www.fraserinstitute.org/economic-freedom/map?geozone=world&amp;page=map&amp;year=2007&quot;)),
+           h4(&quot;Radar chart will show the metrics for the most recent Year in the slider&quot;),
+           h4(&quot;Data shown is smoothed with natural splines, with max deviation of 0.005 to the raw observation&quot;)
+    ),
+    # interface control for selecting countries, metrics and year range, with defaults
+    column(2, 
+           HTML(&quot;&lt;br/&gt;&quot;),
+           selectInput(&quot;countries&quot;, &quot;Countries&quot;, all_countries, multiple = TRUE,
+                       selected = c(&quot;Peru&quot;, &quot;Argentina&quot;, &quot;Brazil&quot;))
+    ),
+    column(2,
+           HTML(&quot;&lt;br/&gt;&quot;),
+           selectInput(&quot;dis_metrics&quot;, &quot;Metrics&quot;, display_metrics, multiple = TRUE,
+                       selected = c(&quot;Freedom To Trade Internationally&quot;, &quot;Summary Index&quot;))
+    ),
+    column(3,
+           HTML(&quot;&lt;br/&gt;&quot;),
+           sliderInput(&quot;years&quot;, &quot;Years&quot;, min = year_range[1],
+                       max = year_range[2], 
+                       value = c(year_range[1], year_range[1]+2), step = 1)
+    )
+  ), 
+  
+  # plotly outputs in second row
+  fluidRow(
+    column(4,
+           plotlyOutput(&quot;slopePlotly&quot;, height = &quot;255px&quot;, width = &quot;100%&quot;),
+           plotlyOutput(&quot;radarPlotly&quot;, height = &quot;370px&quot;, width = &quot;100%&quot;)
+    ),
+    column(8,
+           plotlyOutput(&quot;plotPlotly&quot;, height = &quot;625px&quot;, width = &quot;100%&quot;)
+    )
+  ),
+  theme = shinytheme(&quot;darkly&quot;) # using dark theme
+)
+
+
+server &lt;- function(input, output, session) {
+  
+  # change year slider range based on countries selected
+  observe({
+    if(length(input$countries) &gt; 0){
+      check &lt;- evf_data_clean[J(input$countries), range(Year)]
+      updateSliderInput(session, &quot;years&quot;, min = check[1], max = check[2], step = 1)
+    }
+  })
+  
+  # reactive data sets based on country, years and metrics
+  dt0 &lt;- reactive({
+    evf_data_clean[J(input$countries),]
+  })
+  dt1 &lt;- reactive({
+    dt0()[Year %in% input$years[1]:input$years[2],]
+  })
+  dt2 &lt;- reactive({
+    dt0()[Year == input$years[2],]
+  })
+  c_length &lt;- reactive({
+    length(input$countries)
+  })
+  m_length &lt;- reactive({
+    length(input$dis_metrics)
+  })
+  dt_metrics &lt;- reactive({
+    all_metrics[charmatch(input$dis_metrics, display_metrics)]
+  })
+  
+  
+  # scatter plot with yearly &quot;snake&quot; trail
+  output$plotPlotly &lt;- renderPlotly({
+    if(m_length() == 2 &amp; c_length() %in% 1:3){
+      plotlyTimeTrackPlot(copy(dt1()), input$countries, input$dis_metrics, dt_metrics(),
+                          input$years, plot_control)
+    }
+  })
+  # time series line plot of summary index
+  output$slopePlotly &lt;- renderPlotly({
+    if(c_length() %in% 1:3){
+      plotlySlopeGraph(copy(dt1()), plot_control, input$countries,
+                       metric = &quot;SummaryIndex&quot;, display_metric = &quot;Summary Index&quot;)
+    }
+  })
+  # radar plot of most recent values for each metric
+  output$radarPlotly &lt;- renderPlotly({
+    if(c_length() %in% 1:3){
+      plotlyRadarChart(dt2(), all_metricsv2, display_metrics2v2, input$countries, plot_control)
+    }
+  })
+}</code></pre>
+<p>Once defined, you can run this locally in the browser.</p>
+<pre class="r"><code>shinyApp(ui, server, options = list(height = 800, width = 1200, scrolling = &quot;no&quot;))</code></pre>
+<p>I’m not able to run this in blogdown, without storing all the data in the site. Instead I have uploaded it to shinyapps.io with the link below. I tried to embed this in this tutorial, but it didn’t scale well to the page. Here is the <strong><a href="https://jp-insights.shinyapps.io/SummaryIndexExplorer/">ShinyApp</a></strong>. If this doesn’t load, it either means the App is no longer active, or I’ve run out of free minutes :)</p>
+</div>
