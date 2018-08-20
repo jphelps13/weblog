@@ -132,7 +132,10 @@ canonifyurls = true
 
   # Syntax highlighter, possible choice between: "highlight.js" (recommanded) and "prism.js" (experimental)
   # You can comment it to disable syntax highlighting
-  syntaxHighlighter = "highlight.js"
+  # syntax style links to theme/static/css folder. See this site for details:
+  # https://highlightjs.org/static/demo/
+  syntaxHighlighter = "highlight.pack.js"
+  syntaxStyle = "github"
 
   # Hide sidebar on all article page to let article take full width to improve reading, and enjoy wide images and cover images. (true: enable, false: disable)
   clearReading = true
