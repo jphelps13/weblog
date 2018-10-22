@@ -35,7 +35,7 @@ canonifyurls = true
   name = "Jonathan Phelps"
   bio = '''
   I am a data scientist working for [Summit](https://www.summit.co.uk/), an e-commerce
-  company. We specialise in optimising Ad media spend on Google and Bing for some ok
+  company. We specialise in optimising Ad media spend on Google and Bing for some of
   the UK's largest online retailers including Argos, Durex and Joules.
   '''
   job = "Data Scientist"
