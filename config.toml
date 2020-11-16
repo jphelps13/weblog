@@ -187,7 +187,7 @@ canonifyurls = true
   # Current image is on AWS S3 and delivered by AWS CloudFront.
   # Otherwise put your image in folder `static/_images/` (development)  or in `source/assets/images/` if you can't or don't want to build the theme,
   # and use relative url : `your-image.png`
-  coverImage = "https://lh3.googleusercontent.com/IMvTG7MLJBBnQLopQsTqBtU5whphaC46TKfQetl7s4VlGQDNHiGABjQTJqJl7R6udpJJVnpgpwrs16AeQCVUHrBfyLxoN0CwTuc8-jO8KvFS2_rRzNMosv6okDKXk3axfS6LXEKIUC1pc6j_tsDZoN-NstPSsssa20tnqKJ7n3cvba1lqgE0A7mly_0LvfRwnfDg3koy1itZAyO6j06P0ezZIC3rCXjZD24tj7J4QBIG_fa1QQbob-3eqqA0RkU0AFY84CqwsheAC5w9QwaDHQn2lfvdKOOeLmXxosh6l8hMnnuCxVagcFI0DMsaEtWNTd2mveEJNXa53yVE8ufoMSDlgxg2b7OyA5ixluHx6Elr3vnrQFyb4NWwUI-XAN7biDnNrHUG3__zTyQocmzPlfP2Ewld9R9MGIc3kdbrfP4GWu5yWnUuRQdcFwO-fz_nbnMnUg9WtoC-UoZGmHGtaeXzyoqs3guX46Sxje2vnaXMD8SKVA0sqLJ7OKI_lZ11NlplAhp3aM1B8U7rbyjNpkPqOD9GVwschZ-Y6EjknxQcjL_Z4KUlnqT3X1YJEboL3l7_QGyUAT7IiAtBZWba-vaFq432rhlXioQwVUte=w1619-h910-no"
+  coverImage = "https://lh3.googleusercontent.com/pw/ACtC-3eH79wv4cGgmY-n9dvFn4YyTQIzinNliepawR0GRau_6kgKp8RXdmWfW-sff1Ppqh8_loWCWld8caN7kJPjN2MyIGj5-D4UdOGfJDsXDchK7tzp1TRomHTw6hBVeYO-HADt2Ha2xiNziViwcuI3FUHMTQ=w1497-h798-no"
 
   # Display an image gallery at the end of a post which have photos variables (false: disabled, true: enabled)
   imageGallery = true
