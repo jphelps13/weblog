@@ -34,7 +34,7 @@ canonifyurls = true
 [author]
   name = "Jonathan Phelps"
   bio = '''
-  I am a data scientist working for [Summit](https://www.summit.co.uk/), an e-commerce
+  I am a Data Scientist working for [Summit](https://www.summit.co.uk/), an e-commerce
   company. We specialise in optimising Ad media spend on Google and Bing for some of
   the UK's largest online retailers including Argos, Durex and Joules.
   '''
@@ -76,6 +76,13 @@ canonifyurls = true
 #  pre = "<i class=\"sidebar-button-icon fa fa-lg fa-archive\"></i>"
 #  url = "/archives"
 [[menu.main]]
+  weight = 4
+  identifier = "insights"
+  name = "Insights Profile"
+  pre = "<i class=\"sidebar-button-icon fa fa-lg fa-file\"></i>"
+  url = "/files/insights.pdf"
+[[menu.main]]
+[[menu.main]]
   weight = 3
   identifier = "cv"
   name = "CV"
@@ -101,13 +108,6 @@ canonifyurls = true
   name = "Stack Overflow"
   pre = "<i class=\"sidebar-button-icon fa fa-lg fa-stack-overflow\"></i>"
   url = "https://stackoverflow.com/users/5990938/jonny-phelps"
-
-[[menu.links]]
-  weight = 1
-  identifier = "github"
-  name = "GitHub"
-  pre = "<i class=\"sidebar-button-icon fa fa-lg fa-github\"></i>"
-  url = "https://github.com/jphelps13"
 
 [[menu.links]]
   weight = 4
