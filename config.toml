@@ -121,12 +121,12 @@ canonifyurls = true
   pre = "<i class=\"sidebar-button-icon fa fa-lg fa-bar-chart\"></i>"
   url = "https://public.tableau.com/profile/jonathan.phelps#!/"
 
-#[[menu.links]]
-#  weight = 3
-#  identifier = "linkedin"
-#  name = "LinkedIn"
-#  pre = "<i class=\"sidebar-button-icon fa fa-lg fa-linkedin\"></i>"
-#  url = "https://www.linkedin.com/in/jonathan-phelps-10323882"
+[[menu.links]]
+  weight = 5
+  identifier = "linkedin"
+  name = "LinkedIn"
+  pre = "<i class=\"sidebar-button-icon fa fa-lg fa-linkedin\"></i>"
+  url = "https://www.linkedin.com/in/jonny-phelps-10323882/"
 
 # [[menu.misc]]
 #   weight = 1
