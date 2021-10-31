@@ -34,12 +34,10 @@ canonifyurls = true
 [author]
   name = "Jonathan Phelps"
   bio = '''
-  I am a Data Scientist working for [Summit](https://www.summit.co.uk/), an e-commerce
-  company. We specialise in optimising Ad media spend on Google and Bing for some of
-  the UK's largest online retailers including Argos, Durex and Joules.
+  I am a Data Scientist working at [Kantar Worldpanel](https://www.linkedin.com/company/worldpanelbykantar)
   '''
   job = "Data Scientist"
-  location = "Hull, England"
+  location = "London, England"
   # Your Gravatar email. Overwrite `author.picture` everywhere in the blog
   gravatarEmail = "jphelps130591@gmail.com"
   # Your profile picture
